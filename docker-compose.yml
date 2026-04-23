@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: cogumelos-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cogumelos
+      POSTGRES_USER: cogumelos_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    # SEGURANÇA: porta do banco NÃO exposta externamente
+    # acessível apenas pela rede interna do Docker
+    expose:
+      - "5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cogumelos_user -d cogumelos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  cogumelos-api:
+    build: ./backend
+    container_name: cogumelos-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # SEGURANÇA: porta da API NÃO exposta externamente
+    # o Next.js faz proxy interno via rede Docker
+    expose:
+      - "8080"
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/cogumelos
+      DB_USER: cogumelos_user
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+
+  cogumelos-front:
+    build: ./frontend
+    container_name: cogumelos-front
+    restart: unless-stopped
+    ports:
+      # Única porta exposta — o Nginx faz SSL termination aqui
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://cogumelos-api:8080
+      FRONTEND_URL: ${FRONTEND_URL}
+    depends_on:
+      cogumelos-api:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+    driver: local

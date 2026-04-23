@@ -1,0 +1,48 @@
+services:
+
+  cogumelos-api:
+    build: ./backend
+    container_name: cogumelos-api
+    restart: always
+    expose:
+      - "8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:sqlite:/app/data/cogumelos.db
+      SERVER_PORT: 8080
+    volumes:
+      - cogumelos-data:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+
+  cogumelos-front:
+    build: ./frontend
+    container_name: cogumelos-front
+    restart: always
+    expose:
+      - "3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://cogumelos-api:8080
+    depends_on:
+      cogumelos-api:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:alpine
+    container_name: cogumelos-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - cogumelos-front
+
+volumes:
+  cogumelos-data:
+    driver: local

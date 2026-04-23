@@ -1,0 +1,43 @@
+# ── Segredos e variáveis de ambiente ─────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+secrets/
+
+# ── Java / Maven ──────────────────────────────────────────────────────────────
+backend/target/
+*.iml
+*.class
+
+# ── IntelliJ IDEA ─────────────────────────────────────────────────────────────
+.idea/
+*.iws
+*.ipr
+
+# ── Next.js / Node ────────────────────────────────────────────────────────────
+frontend/.next/
+frontend/node_modules/
+frontend/out/
+frontend/.vercel
+frontend/coverage/
+
+# ── Docker volumes locais ─────────────────────────────────────────────────────
+postgres_data/
+docker-compose.override.yml
+
+# ── Banco de dados ────────────────────────────────────────────────────────────
+*.db
+*.sqlite
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Sistema operacional ───────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,316 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --purple:    #534AB7;
+  --purple-l:  #EEEDFE;
+  --purple-d:  #3C3489;
+  --teal:      #0F6E56;
+  --teal-l:    #E1F5EE;
+  --teal-m:    #5DCAA5;
+  --amber:     #BA7517;
+  --amber-l:   #FAEEDA;
+  --red:       #A32D2D;
+  --red-l:     #FCEBEB;
+  --blue:      #1F6FEB;
+  --blue-l:    #E3F0FF;
+  --green:     #00A550;
+  --green-l:   #E3FFF0;
+  --gray-bg:   #F7F6F3;
+  --gray-line: #EBEBEB;
+  --gray-text: #888888;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--gray-bg);
+  color: #111;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  @apply antialiased;
+}
+
+/* ── Cards ── */
+.card {
+  background: #fff;
+  border: 1px solid var(--gray-line);
+  border-radius: 16px;
+  padding: 16px 18px;
+}
+
+.card-sm {
+  background: #fff;
+  border: 1px solid var(--gray-line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+/* ── Buttons ── */
+.btn {
+  @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl
+         text-sm font-semibold cursor-pointer select-none transition-all active:scale-95;
+  background: #fff;
+  border: 1.5px solid var(--gray-line);
+  color: #333;
+}
+.btn:hover { background: #F7F6F3; }
+
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl
+         text-sm font-semibold cursor-pointer select-none transition-all active:scale-95;
+  background: var(--purple);
+  color: #fff;
+  border: none;
+}
+.btn-primary:hover { background: var(--purple-d); }
+.btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+
+.btn-danger {
+  @apply inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg
+         text-xs font-semibold cursor-pointer select-none transition-all active:scale-95;
+  background: var(--red-l);
+  color: var(--red);
+  border: none;
+}
+
+/* ── Form ── */
+.input {
+  @apply w-full px-3 py-2 text-sm rounded-xl border bg-white
+         focus:outline-none focus:ring-2;
+  border-color: var(--gray-line);
+  --tw-ring-color: var(--purple);
+  min-height: 40px;
+  color: #111;
+}
+.input::placeholder { color: #bbb; }
+
+.label {
+  @apply block text-xs font-semibold uppercase tracking-wide mb-1;
+  color: var(--gray-text);
+}
+
+/* ── Badges ── */
+.badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold;
+}
+.badge-prep   { background: #FAEEDA; color: #633806; }
+.badge-inoc   { background: #EEEDFE; color: #3C3489; }
+.badge-amad   { background: #E1F5EE; color: #085041; }
+.badge-frut   { background: var(--blue-l); color: #0C447C; }
+.badge-conc   { background: #EAF3DE; color: #27500A; }
+.badge-admin  { background: var(--amber-l); color: #633806; }
+.badge-prod   { background: var(--purple-l); color: var(--purple-d); }
+
+/* ── Thumbnail de card ── */
+.exp-thumb {
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  font-size: 36px;
+}
+
+/* ── Progress bar ── */
+.progress-track {
+  height: 4px;
+  border-radius: 2px;
+  background: #F0F0F0;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width .4s ease;
+}
+
+/* ── Alert strip ── */
+.alert-strip {
+  @apply flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium;
+}
+
+/* ── Table ── */
+.table-wrap { @apply w-full overflow-x-auto; }
+.tbl { @apply w-full text-sm; border-collapse: collapse; }
+.tbl th {
+  @apply text-left py-2 px-3 text-xs font-semibold uppercase tracking-wide;
+  color: var(--gray-text);
+  border-bottom: 1px solid var(--gray-line);
+}
+.tbl td {
+  @apply py-2.5 px-3;
+  border-bottom: 1px solid #F7F6F3;
+  color: #111;
+}
+.tbl tr:last-child td { border-bottom: none; }
+.tbl tr:hover td { background: #FAFAF8; }
+
+/* ── Metric card ── */
+.metric-card {
+  background: #fff;
+  border: 1px solid var(--gray-line);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+.metric-label { font-size: 11px; color: var(--gray-text); margin-bottom: 4px; }
+.metric-val   { font-size: 24px; font-weight: 700; color: #111; }
+.metric-unit  { font-size: 11px; color: #bbb; margin-top: 2px; }
+
+/* ── Filter pills ── */
+.filter-pill {
+  @apply px-3 py-1.5 rounded-full text-sm font-semibold cursor-pointer transition-all;
+  border: 1.5px solid var(--gray-line);
+  background: #fff;
+  color: #555;
+}
+.filter-pill.active {
+  background: var(--purple);
+  border-color: var(--purple);
+  color: #fff;
+}
+
+/* ── Tabs ── */
+.tabs-bar {
+  display: flex;
+  gap: 2px;
+  background: #F0EEF8;
+  border-radius: 12px;
+  padding: 3px;
+}
+.tab-btn {
+  flex: 1;
+  text-align: center;
+  padding: 7px 8px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #888;
+  cursor: pointer;
+  transition: all .15s;
+}
+.tab-btn.active {
+  background: #fff;
+  color: var(--purple);
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+
+/* ── Timeline ── */
+.timeline-bar {
+  display: flex;
+  gap: 3px;
+  margin: 10px 0 4px;
+}
+.tl-seg {
+  flex: 1;
+  height: 5px;
+  border-radius: 3px;
+  background: #F0F0F0;
+}
+.tl-seg.done   { background: var(--green); }
+.tl-seg.active { background: var(--purple); }
+
+/* ── Alert dot ── */
+.alert-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* ── Mini chart bar ── */
+.mini-bar {
+  flex: 1;
+  border-radius: 3px 3px 0 0;
+  transition: height .3s;
+}
+
+/* ── Mobile nav ── */
+@media (max-width: 640px) {
+  .card  { border-radius: 14px; padding: 14px; }
+  .btn, .btn-primary { padding: 10px 16px; }
+}
+/* Adicionar no final do globals.css existente */
+
+/* ── PWA / Mobile ── */
+@media (max-width: 640px) {
+  /* Inputs maiores para toque */
+  .input {
+    min-height: 48px;
+    font-size: 16px !important; /* evita zoom automático no iOS */
+    border-radius: 12px;
+  }
+
+  select.input {
+    font-size: 16px !important;
+  }
+
+  /* Botões maiores */
+  .btn, .btn-primary {
+    min-height: 48px;
+    border-radius: 12px;
+    font-size: 15px;
+  }
+
+  /* Cards com menos padding */
+  .card {
+    border-radius: 16px;
+    padding: 14px;
+  }
+
+  /* Modais como bottom sheet */
+  .modal-overlay {
+    align-items: flex-end !important;
+  }
+
+  .modal-content {
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 92vh;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Tabs maiores no mobile */
+  .tab-btn {
+    padding: 10px 6px;
+    font-size: 12px;
+  }
+
+  /* Métricas em 2 colunas no mobile */
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Tabelas — scroll horizontal */
+  .table-wrap {
+    margin: 0 -14px;
+    padding: 0 14px;
+  }
+
+  /* Esconde colunas secundárias em tabelas mobile */
+  .tbl .col-hide-mobile {
+    display: none;
+  }
+
+  /* Padding seguro para notch e home indicator */
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Smooth scroll no iOS */
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Remove tap highlight */
+a, button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* PWA standalone — esconde elementos desnecessários */
+@media (display-mode: standalone) {
+  .hide-in-pwa {
+    display: none !important;
+  }
+}

@@ -1,0 +1,43 @@
+# Gitleaks — detecta segredos acidentalmente commitados
+# Documentação: https://github.com/gitleaks/gitleaks
+
+title = "cogumelos-app gitleaks config"
+
+[extend]
+useDefault = true   # usa todas as regras padrão do Gitleaks
+
+# ── Regras customizadas ───────────────────────────────────────────────────────
+[[rules]]
+id          = "jwt-secret-hardcoded"
+description = "JWT secret hardcoded no código"
+regex       = '''(?i)(jwt[._-]?secret\s*[:=]\s*["'])[^"'${}]{20,}'''
+tags        = ["security", "jwt"]
+
+[[rules]]
+id          = "google-oauth-secret"
+description = "Google OAuth2 client secret"
+regex       = '''GOCSPX-[a-zA-Z0-9_-]{28,}'''
+tags        = ["security", "oauth"]
+
+[[rules]]
+id          = "db-password-hardcoded"
+description = "Senha de banco hardcoded"
+regex       = '''(?i)(db[._-]?password|database[._-]?password)\s*[:=]\s*["'][^"'${}]{6,}'''
+tags        = ["security", "database"]
+
+# ── Arquivos sempre ignorados ─────────────────────────────────────────────────
+[allowlist]
+paths = [
+  ".env.example",          # template sem valores reais — permitido
+  "CONTRIBUTING.md",       # documentação
+  ".gitleaks.toml",
+]
+
+# Ignora valores que são claramente placeholders
+regexes = [
+  "troque_por",
+  "seu-client-id",
+  "seu-secret-aqui",
+  "test-secret",
+  "minimo-32-caracteres",
+]
