@@ -1,15 +1,10 @@
-// Copyright (c) 2026 Alessandro Billy Palma — cogumelos.app
-// Todos os direitos reservados.
-// Uso não autorizado é expressamente proibido. Ver arquivo LICENSE.
-// Contato: contato@cogumelos.app
-
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import LoginPage from '@/app/login/page'
 
-const mockPush    = vi.fn()
-const mockLogin   = vi.fn()
+const mockPush  = vi.fn()
+const mockLogin = vi.fn()
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn() }),
@@ -26,6 +21,7 @@ vi.mock('@/lib/api', () => ({
       registro: vi.fn(),
     },
   },
+  saveTokens: vi.fn(),
 }))
 
 import { api } from '@/lib/api'
@@ -48,7 +44,9 @@ describe('LoginPage', () => {
 
   it('deve alternar para aba de registro ao clicar em Criar conta', async () => {
     render(<LoginPage />)
-    await userEvent.click(screen.getByText('Criar conta'))
+    // clica na aba (primeiro elemento com o texto)
+    const abas = screen.getAllByText('Criar conta')
+    await userEvent.click(abas[0])
     expect(screen.getByPlaceholderText('Seu nome completo')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Ex: Cogumelos São Paulo')).toBeInTheDocument()
   })
@@ -63,7 +61,9 @@ describe('LoginPage', () => {
 
     await userEvent.type(screen.getByPlaceholderText('seu@email.com'), 'billy@test.com')
     await userEvent.type(screen.getByPlaceholderText('••••••••'), 'senha123')
-    await userEvent.click(screen.getByRole('button', { name: 'Entrar' }))
+
+    // botão submit de login — único botão com type="submit" visível na aba login
+    await userEvent.click(screen.getAllByRole('button').find(b => b.getAttribute('type') === 'submit')!)
 
     await waitFor(() => {
       expect(api.auth.login).toHaveBeenCalledWith({
@@ -83,7 +83,7 @@ describe('LoginPage', () => {
     render(<LoginPage />)
     await userEvent.type(screen.getByPlaceholderText('seu@email.com'), 'billy@test.com')
     await userEvent.type(screen.getByPlaceholderText('••••••••'), 'senha123')
-    await userEvent.click(screen.getByRole('button', { name: 'Entrar' }))
+    await userEvent.click(screen.getAllByRole('button').find(b => b.getAttribute('type') === 'submit')!)
 
     await waitFor(() => {
       expect(mockLogin).toHaveBeenCalledWith(
@@ -100,7 +100,7 @@ describe('LoginPage', () => {
     render(<LoginPage />)
     await userEvent.type(screen.getByPlaceholderText('seu@email.com'), 'wrong@test.com')
     await userEvent.type(screen.getByPlaceholderText('••••••••'), 'errado')
-    await userEvent.click(screen.getByRole('button', { name: 'Entrar' }))
+    await userEvent.click(screen.getAllByRole('button').find(b => b.getAttribute('type') === 'submit')!)
 
     await waitFor(() => {
       expect(screen.getByText('Email ou senha inválidos')).toBeInTheDocument()
@@ -120,13 +120,19 @@ describe('LoginPage', () => {
     } as any)
 
     render(<LoginPage />)
-    await userEvent.click(screen.getByText('Criar conta'))
+
+    // clica na aba Criar conta
+    const abas = screen.getAllByText('Criar conta')
+    await userEvent.click(abas[0])
 
     await userEvent.type(screen.getByPlaceholderText('Seu nome completo'), 'Novo Usuário')
     await userEvent.type(screen.getByPlaceholderText('Ex: Cogumelos São Paulo'), 'Empresa X')
     await userEvent.type(screen.getByPlaceholderText('seu@email.com'), 'novo@test.com')
     await userEvent.type(screen.getByPlaceholderText('Mínimo 6 caracteres'), 'senha123')
-    await userEvent.click(screen.getByRole('button', { name: 'Criar conta' }))
+
+    // botão submit — pega o último "Criar conta" que é o botão do form
+    const botoes = screen.getAllByText('Criar conta')
+    await userEvent.click(botoes[botoes.length - 1])
 
     await waitFor(() => {
       expect(api.auth.registro).toHaveBeenCalledWith({
