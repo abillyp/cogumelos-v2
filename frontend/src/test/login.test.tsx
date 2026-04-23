@@ -1,3 +1,8 @@
+// Copyright (c) 2026 Alessandro Billy Palma — cogumelos.app
+// Todos os direitos reservados.
+// Uso não autorizado é expressamente proibido. Ver arquivo LICENSE.
+// Contato: contato@cogumelos.app
+
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
