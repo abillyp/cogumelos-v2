@@ -1,3 +1,4 @@
+/// <reference types="vitest/globals" />
 // Copyright (c) 2026 Alessandro Billy Palma — cogumelos.app
 // Todos os direitos reservados.
 // Uso não autorizado é expressamente proibido. Ver arquivo LICENSE.
