@@ -21,7 +21,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.util.Map;
 
-@Converter(autoApply = true)
+@Converter(autoApply = false)
 class LocalDateConverter implements AttributeConverter<LocalDate, String> {
 
     @Override

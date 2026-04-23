@@ -15,7 +15,7 @@ import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 import java.time.LocalDateTime;
 
-@Converter(autoApply = true)
+@Converter(autoApply = false)
 public class LocalDateTimeConverter implements AttributeConverter<LocalDateTime, String> {
 
     @Override
