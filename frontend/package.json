@@ -12,8 +12,10 @@
     "test:ui": "vitest --ui"
   },
   "dependencies": {
+    "date-fns": "^4.1.0",
     "next": "14.2.3",
     "react": "^18",
+    "react-day-picker": "^9.14.0",
     "react-dom": "^18"
   },
   "devDependencies": {
