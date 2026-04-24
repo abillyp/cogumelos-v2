@@ -633,11 +633,21 @@ function Experimentos() {
             className="sm:rounded-[20px] sm:max-w-[680px] sm:mx-auto sm:max-h-[90vh]"
             onClick={e => e.stopPropagation()}
           >
-            {/* Handle mobile */}
-            <div className="sm:hidden" style={{ width:36, height:4, borderRadius:2, background:'#D0D0D0', margin:'0 auto 4px' }} />
-            {/* Botão fechar — só desktop */}
-            <div className="hidden sm:flex justify-end">
-              <button className="btn" style={{ fontSize:13 }} onClick={fecharModal}>✕ Fechar</button>
+            {/* Handle + botão fechar — mobile e desktop */}
+            <div style={{ display:'flex', alignItems:'center', marginBottom:8 }}>
+              <div className="sm:hidden" style={{ width:36, height:4, borderRadius:2, background:'#D0D0D0', flex:1, margin:'0 auto' }} />
+              <button
+                onClick={fecharModal}
+                style={{
+                  marginLeft:'auto', background:'#F0F0F0', border:'none',
+                  width:32, height:32, borderRadius:'50%',
+                  fontSize:16, color:'#555', cursor:'pointer',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  flexShrink:0,
+                }}
+              >
+                ✕
+              </button>
             </div>
             <DetalheContent />
           </div>

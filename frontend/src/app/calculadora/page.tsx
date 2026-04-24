@@ -1,8 +1,3 @@
-// Copyright (c) 2026 Alessandro Billy Palma — cogumelos.app
-// Todos os direitos reservados.
-// Uso não autorizado é expressamente proibido. Ver arquivo LICENSE.
-// Contato: contato@cogumelos.app
-
 'use client'
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
@@ -293,7 +288,13 @@ function Calculadora() {
             style={{ background:'#fff', borderRadius:'20px 20px 0 0', padding:'20px 16px 40px', width:'100%', maxHeight:'80vh', overflowY:'auto' }}
             onClick={e => e.stopPropagation()}
           >
-            <div style={{ width:36, height:4, borderRadius:2, background:'#E0E0E0', margin:'0 auto 16px' }} />
+            <div style={{ display:'flex', alignItems:'center', marginBottom:16 }}>
+              <div style={{ width:36, height:4, borderRadius:2, background:'#E0E0E0', flex:1, margin:'0 auto' }} />
+              <button
+                onClick={() => setShowFormulacoes(false)}
+                style={{ marginLeft:'auto', background:'#F0F0F0', border:'none', width:32, height:32, borderRadius:'50%', fontSize:16, color:'#555', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}
+              >✕</button>
+            </div>
             <h3 style={{ fontSize:16, fontWeight:800, marginBottom:16 }}>Formulações salvas</h3>
             {formulacoes.map(f => (
               <div key={f.id} style={{ padding:'12px 0', borderBottom:'0.5px solid #F0F0F0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
