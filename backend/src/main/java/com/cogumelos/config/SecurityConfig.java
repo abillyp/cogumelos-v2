@@ -1,14 +1,3 @@
-/*
- * Copyright (c) 2026 Alessandro Billy Palma — cogumelos.app
- * Todos os direitos reservados.
- *
- * Este arquivo é parte do sistema cogumelos.app e está protegido pela
- * Lei Brasileira de Direitos Autorais (Lei nº 9.610/1998).
- * Uso, cópia ou distribuição não autorizados são expressamente proibidos.
- *
- * Contato: contato@cogumelos.app
- */
-
 package com.cogumelos.config;
 
 import com.cogumelos.security.CookieOAuth2RequestRepository;
@@ -24,12 +13,13 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
@@ -44,9 +34,9 @@ public class SecurityConfig {
                           TrialFilter trialFilter,
                           OAuth2SuccessHandler oAuth2SuccessHandler,
                           CookieOAuth2RequestRepository cookieOAuth2RequestRepository) {
-        this.jwtFilter                   = jwtFilter;
-        this.trialFilter                 = trialFilter;
-        this.oAuth2SuccessHandler        = oAuth2SuccessHandler;
+        this.jwtFilter                    = jwtFilter;
+        this.trialFilter                  = trialFilter;
+        this.oAuth2SuccessHandler         = oAuth2SuccessHandler;
         this.cookieOAuth2RequestRepository = cookieOAuth2RequestRepository;
     }
 
@@ -61,21 +51,17 @@ public class SecurityConfig {
                 .csrf(c -> c.disable())
                 .cors(c -> c.configurationSource(corsSource()))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((request, response, authException) ->
-                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Não autenticado"))
-                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/oauth2/**",
                                 "/actuator/health"
                         ).permitAll()
-                        .requestMatchers(HttpMethod.POST,   "/api/insumos/**").hasRole("ADMIN_TENANT")
-                        .requestMatchers(HttpMethod.PUT,    "/api/insumos/**").hasRole("ADMIN_TENANT")
-                        .requestMatchers(HttpMethod.DELETE, "/api/insumos/**").hasRole("ADMIN_TENANT")
                         .requestMatchers("/api/insumos/**", "/api/especies/**").authenticated()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN_TENANT")
+                        .requestMatchers(HttpMethod.POST,   "/api/insumos/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT,    "/api/insumos/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/insumos/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth -> oauth
@@ -97,14 +83,30 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsSource() {
         CorsConfiguration cfg = new CorsConfiguration();
-        // Em produção: substitua pela URL real do frontend
-        String frontendUrl = System.getenv("FRONTEND_URL") != null
-                ? System.getenv("FRONTEND_URL")
-                : "http://localhost:3000";
-        cfg.setAllowedOriginPatterns(List.of(frontendUrl));
+
+        // FRONTEND_URLS aceita múltiplas origens separadas por vírgula
+        // Ex local:  http://localhost:3000,http://192.168.15.13:3000
+        // Ex produção: https://organico4you.com.br
+        String frontendUrls = System.getenv("FRONTEND_URLS");
+        String frontendUrl  = System.getenv("FRONTEND_URL");
+
+        List<String> origens;
+        if (frontendUrls != null && !frontendUrls.isBlank()) {
+            origens = Arrays.stream(frontendUrls.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isBlank())
+                    .collect(Collectors.toList());
+        } else if (frontendUrl != null && !frontendUrl.isBlank()) {
+            origens = List.of(frontendUrl.trim());
+        } else {
+            origens = List.of("http://localhost:3000");
+        }
+
+        cfg.setAllowedOriginPatterns(origens);
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
         cfg.setAllowCredentials(true);
+
         UrlBasedCorsConfigurationSource src = new UrlBasedCorsConfigurationSource();
         src.registerCorsConfiguration("/**", cfg);
         return src;
