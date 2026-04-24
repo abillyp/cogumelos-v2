@@ -1,8 +1,3 @@
-// Copyright (c) 2026 Alessandro Billy Palma — cogumelos.app
-// Todos os direitos reservados.
-// Uso não autorizado é expressamente proibido. Ver arquivo LICENSE.
-// Contato: contato@cogumelos.app
-
 const BASE = '/api'
 
 function getToken(): string | null {
@@ -68,6 +63,21 @@ async function req<T>(path: string, options?: RequestInit, retry = true): Promis
     },
     ...options,
   })
+  // Trial expirado, assinatura cancelada ou expirada
+  if (res.status === 402) {
+    clearTokens()
+    if (typeof window !== 'undefined') window.location.href = '/plano-expirado?tipo=trial_expirado'
+    throw new Error('Período de trial encerrado')
+  }
+  if (res.status === 403) {
+    const err403 = await res.json().catch(() => ({ erro: '' })) as { erro: string }
+    if (err403.erro?.toLowerCase().includes('cancelada')) {
+      clearTokens()
+      if (typeof window !== 'undefined') window.location.href = '/plano-expirado?tipo=cancelado'
+      throw new Error('Assinatura cancelada')
+    }
+  }
+
   if (res.status === 401 && retry) {
     try {
       const novoToken = await renovarToken()
@@ -125,14 +135,14 @@ export const api = {
     buscar:         (id: string)     => req(`/experimentos/${id}`),
     codigoSugestao: ()               => req('/experimentos/codigo-sugestao'),
     criar:          (body: unknown)  => req('/experimentos', { method: 'POST', body: JSON.stringify(body) }),
-    avancar:        (id: string)     => req(`/experimentos/${id}/avancar`, { method: 'PATCH' }),
+    avancar:        (id: string)     => req(`/experimentos/${id}/avancar`, { method: 'POST' }),
     monitoramentos: {
       listar: (id: string)                => req(`/experimentos/${id}/monitoramentos`),
       criar:  (id: string, body: unknown) => req(`/experimentos/${id}/monitoramentos`, { method: 'POST', body: JSON.stringify(body) }),
     },
 	salvarCustos: (id: string, body: unknown) =>
 	  req(`/experimentos/${id}/custos`, {
-		method: 'PATCH',
+		method: 'PUT',
 		body: JSON.stringify(body),
 	  }),	
     colheitas: {

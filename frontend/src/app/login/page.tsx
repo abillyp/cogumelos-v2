@@ -1,16 +1,12 @@
-// Copyright (c) 2026 Alessandro Billy Palma — cogumelos.app
-// Todos os direitos reservados.
-// Uso não autorizado é expressamente proibido. Ver arquivo LICENSE.
-// Contato: contato@cogumelos.app
-
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { AuthUser } from '@/lib/types'
 
-export default function LoginPage() {
+function LoginContent() {
   const router          = useRouter()
   const { login, user } = useAuth()
   const [tab, setTab]           = useState<'login' | 'registro'>('login')
@@ -19,9 +15,21 @@ export default function LoginPage() {
   const [email, setEmail]       = useState('')
   const [senha, setSenha]       = useState('')
   const [erro, setErro]         = useState('')
+  const searchParams = useSearchParams()
   const [loading, setLoading]   = useState(false)
 
   useEffect(() => { if (user) router.push('/') }, [user])
+
+  useEffect(() => {
+    const erroParam = searchParams.get('erro')
+    const msgs: Record<string, string> = {
+      trial_expirado:   'Período de trial encerrado. Assine um plano para continuar.',
+      assinatura_expirada: 'Assinatura expirada. Renove seu plano para continuar.',
+      cancelado:        'Assinatura cancelada. Entre em contato para reativar.',
+      sessao_expirada:  'Sua sessão expirou. Faça login novamente.',
+    }
+    if (erroParam && msgs[erroParam]) setErro(msgs[erroParam])
+  }, [searchParams])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -140,5 +148,17 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight:'100vh', background:'var(--gray-bg)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <p style={{ fontSize:14, color:'#bbb' }}>Carregando...</p>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   )
 }
