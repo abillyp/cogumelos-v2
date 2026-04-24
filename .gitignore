@@ -7,11 +7,13 @@
 *.p12
 *.jks
 secrets/
+frontend/.env.local
 
 # ── Java / Maven ──────────────────────────────────────────────────────────────
 backend/target/
 *.iml
 *.class
+backend/src/main/resources/application-local.yml
 
 # ── IntelliJ IDEA ─────────────────────────────────────────────────────────────
 .idea/
