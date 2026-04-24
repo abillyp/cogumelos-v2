@@ -4,7 +4,11 @@
 // Contato: contato@cogumelos.app
 
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { DayPicker } from 'react-day-picker'
+import { format, parse, isValid } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import 'react-day-picker/dist/style.css'
 import { api } from '@/lib/api'
 import { Experimento, Formulacao, Monitoramento, Colheita } from '@/lib/types'
 import { TimelineBar, MiniChart, StatCard } from '@/components/Components'
@@ -25,6 +29,65 @@ const STATUS_STYLE: Record<string,{bg:string; badge:string; badgeText:string}> =
   AMADURECIMENTO: { bg:'linear-gradient(135deg,#E3FFF0,#C7F7DF)', badge:'#00A550', badgeText:'#fff' },
   FRUTIFICACAO:   { bg:'linear-gradient(135deg,#E3F0FF,#C7E0FF)', badge:'#1F6FEB', badgeText:'#fff' },
   CONCLUIDO:      { bg:'linear-gradient(135deg,#EAF3DE,#D5EBBE)', badge:'#27500A', badgeText:'#fff' },
+}
+
+
+// DatePicker com react-day-picker — sem popup nativo, funciona dentro de modais
+function DateInput({ value, onChange, className }: { value: string; onChange: (v: string) => void; className?: string }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  const selected = value ? parse(value, 'yyyy-MM-dd', new Date()) : undefined
+  const validSelected = selected && isValid(selected) ? selected : undefined
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <input
+        type="text"
+        readOnly
+        className={className}
+        value={validSelected ? format(validSelected, 'dd/MM/yyyy') : ''}
+        placeholder="DD/MM/AAAA"
+        style={{ cursor: 'pointer' }}
+        onMouseDown={(e) => { e.stopPropagation(); setOpen(o => !o) }}
+      />
+      {open && (
+        <div
+          style={{
+            position: 'absolute', top: '100%', left: 0, zIndex: 9999,
+            background: '#fff', border: '1px solid #EBEBEB',
+            borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,.12)',
+            padding: '8px', marginTop: 4,
+          }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          <DayPicker
+            mode="single"
+            selected={validSelected}
+            onSelect={(day) => {
+              if (day) { onChange(format(day, 'yyyy-MM-dd')); setOpen(false) }
+            }}
+            locale={ptBR}
+            styles={{
+              caption: { color: '#111' },
+              day_selected: { background: '#534AB7', color: '#fff' },
+              day_today: { color: '#534AB7', fontWeight: 700 },
+            }}
+          />
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function ExperimentosPage() {
@@ -285,7 +348,7 @@ function Experimentos() {
             {/* Mobile: 2 colunas */}
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
               <div><label className="label">Data</label>
-                <input type="date" className="input text-sm" value={dataM} onChange={e=>setDataM(e.target.value)} /></div>
+                <DateInput className="input text-sm" value={dataM} onChange={setDataM} /></div>
               <div><label className="label">Sala</label>
                 <select className="input text-sm" value={sala} onChange={e=>setSala(e.target.value)}>
                   <option value="AMADURECIMENTO">Amadurecimento</option>
@@ -341,7 +404,7 @@ function Experimentos() {
             <h3 style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>Registrar colheita</h3>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
               <div><label className="label">Data</label>
-                <input type="date" className="input text-sm" value={dataC} onChange={e=>setDataC(e.target.value)} /></div>
+                <DateInput className="input text-sm" value={dataC} onChange={setDataC} /></div>
               <div><label className="label">Peso total (kg)</label>
                 <input type="number" step={0.1} className="input text-sm" value={pesoTotal} onChange={e=>setPesoTotal(e.target.value)} placeholder="28.4" /></div>
             </div>
@@ -462,7 +525,7 @@ function Experimentos() {
             </div>
             <div>
               <label className="label">Data de preparo</label>
-              <input type="date" className="input" value={dataPreparo} onChange={e=>setDataPreparo(e.target.value)} />
+              <DateInput className="input" value={dataPreparo} onChange={setDataPreparo} />
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
               <div>
@@ -528,9 +591,10 @@ function Experimentos() {
       {/* ── Modal: Novo experimento ── */}
       {showNovoExp && (
         <div
-          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:50, display:'flex', alignItems:'flex-end', padding:0 }}
-          className="sm:items-center sm:p-4"
-          onClick={() => setShowNovoExp(false)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:50, display:'flex', alignItems:'flex-end' }}
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setShowNovoExp(false)
+          }}
         >
           <div
             style={{ background:'#fff', borderRadius:'20px 20px 0 0', padding:'20px 16px 32px', width:'100%' }}
@@ -550,7 +614,9 @@ function Experimentos() {
         <div
           style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:50, display:'flex', alignItems:'flex-end' }}
           className="sm:items-center sm:p-4"
-          onClick={fecharModal}
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) fecharModal()
+          }}
         >
           <div
             style={{
