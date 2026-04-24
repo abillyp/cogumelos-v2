@@ -113,7 +113,7 @@ public class AuthController {
             u.setNome(req.nome());
             u.setEmail(req.email());
             u.setSenhaHash(encoder.encode(req.senha()));
-            u.setRole(Role.ADMIN_TENANT);         // dono da conta
+            u.setRole(Role.PRODUTOR);         // dono da conta
             u.setTenant(tenant);
             usuarioRepo.save(u);
 
