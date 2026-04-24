@@ -128,7 +128,7 @@ export const api = {
     avancar:        (id: string)     => req(`/experimentos/${id}/avancar`, { method: 'POST' }),
     monitoramentos: {
       listar: (id: string)                => req(`/experimentos/${id}/monitoramentos`),
-      criar:  (id: string, body: unknown) => req(`/experimentos/${id}/monitoramentos`, { method: 'POST', body: JSON.stringify(body) }),
+      criar:  (id: string, body: unknown) => req(`/experimentos/${id}/monitoramentos`, { method: 'PATCH', body: JSON.stringify(body) }),
     },
 	salvarCustos: (id: string, body: unknown) =>
 	  req(`/experimentos/${id}/custos`, {
