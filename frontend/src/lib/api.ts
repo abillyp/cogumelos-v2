@@ -125,10 +125,10 @@ export const api = {
     buscar:         (id: string)     => req(`/experimentos/${id}`),
     codigoSugestao: ()               => req('/experimentos/codigo-sugestao'),
     criar:          (body: unknown)  => req('/experimentos', { method: 'POST', body: JSON.stringify(body) }),
-    avancar:        (id: string)     => req(`/experimentos/${id}/avancar`, { method: 'POST' }),
+    avancar:        (id: string)     => req(`/experimentos/${id}/avancar`, { method: 'PATCH' }),
     monitoramentos: {
       listar: (id: string)                => req(`/experimentos/${id}/monitoramentos`),
-      criar:  (id: string, body: unknown) => req(`/experimentos/${id}/monitoramentos`, { method: 'PATCH', body: JSON.stringify(body) }),
+      criar:  (id: string, body: unknown) => req(`/experimentos/${id}/monitoramentos`, { method: 'POST', body: JSON.stringify(body) }),
     },
 	salvarCustos: (id: string, body: unknown) =>
 	  req(`/experimentos/${id}/custos`, {
