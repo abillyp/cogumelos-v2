@@ -6,7 +6,7 @@
  * Lei Brasileira de Direitos Autorais (Lei nº 9.610/1998).
  * Uso, cópia ou distribuição não autorizados são expressamente proibidos.
  *
- * Contato: contato@cogumelos.app
+ * Contato: alessandro.palma@organico4you.com.br
  */
 
 package com.cogumelos.enums;

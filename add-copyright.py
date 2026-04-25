@@ -19,7 +19,7 @@ from pathlib import Path
 AUTHOR      = "Alessandro Billy Palma"
 PRODUCT     = "cogumelos.app"
 YEAR        = "2026"
-CONTACT     = "contato@cogumelos.app"
+CONTACT     = "alessandro.palma@organico4you.com.br"
 MARKER      = "Copyright (c)"   # string usada para detectar se header já existe
 
 JAVA_HEADER = f"""\
