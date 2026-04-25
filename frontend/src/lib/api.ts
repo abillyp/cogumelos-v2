@@ -112,6 +112,14 @@ export const api = {
       atualizar: (id: string, body: unknown)  => req(`/admin/usuarios/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
       deletar:   (id: string)                 => req(`/admin/usuarios/${id}`, { method: 'DELETE' }),
     },
+    tenants: {
+      listar:       ()                            => req('/admin/tenants'),
+      resumo:       ()                            => req('/admin/tenants/resumo'),
+      buscar:       (id: number)                  => req(`/admin/tenants/${id}`),
+      atualizar:    (id: number, body: unknown)   => req(`/admin/tenants/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+      criar:        (body: unknown)               => req('/admin/tenants', { method: 'POST', body: JSON.stringify(body) }),
+      estenderTrial:(id: number, dias: number)    => req(`/admin/tenants/${id}/estender-trial`, { method: 'POST', body: JSON.stringify({ dias }) }),
+    },
   },
   insumos: {
     listar:     ()                           => req('/insumos'),
