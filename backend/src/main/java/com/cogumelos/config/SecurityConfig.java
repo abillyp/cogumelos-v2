@@ -55,7 +55,12 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/oauth2/**",
-                                "/actuator/health"
+                                "/actuator/health",
+                                // Swagger UI
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**",
+                                "/v3/api-docs"
                         ).permitAll()
                         .requestMatchers("/api/insumos/**", "/api/especies/**").authenticated()
                         .requestMatchers(HttpMethod.POST,   "/api/insumos/**").hasRole("ADMIN")

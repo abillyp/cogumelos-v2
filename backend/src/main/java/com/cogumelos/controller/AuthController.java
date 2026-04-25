@@ -1,39 +1,33 @@
-/*
- * Copyright (c) 2026 Alessandro Billy Palma — cogumelos.app
- * Todos os direitos reservados.
- *
- * Este arquivo é parte do sistema cogumelos.app e está protegido pela
- * Lei Brasileira de Direitos Autorais (Lei nº 9.610/1998).
- * Uso, cópia ou distribuição não autorizados são expressamente proibidos.
- *
- * Contato: alessandro.palma@organico4you.com.br
- */
-
 package com.cogumelos.controller;
 
 import com.cogumelos.domain.*;
 import com.cogumelos.dto.Dtos.*;
-import com.cogumelos.enums.PlanoType;
 import com.cogumelos.enums.Role;
 import com.cogumelos.repository.*;
 import com.cogumelos.security.JwtService;
 import com.cogumelos.service.TenantService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/auth")
+@Tag(name = "Autenticação", description = "Login, registro, refresh token e logout")
 public class AuthController {
 
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
@@ -62,140 +56,118 @@ public class AuthController {
         this.tenantService = tenantService;
     }
 
-    // ✅ login — passa tenantId e plano no token
+    @Operation(summary = "Login com email e senha",
+        description = "Autentica o usuário e retorna JWT de acesso (15 min) e refresh token (30 dias).")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Login realizado com sucesso"),
+        @ApiResponse(responseCode = "400", description = "Email ou senha inválidos",
+            content = @Content(examples = @ExampleObject(value = "{\"erro\": \"Email ou senha inválidos\"}")))
+    })
     @PostMapping("/login")
     @Transactional
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req) {
         Usuario u = usuarioRepo.findByEmail(req.email())
                 .orElseThrow(() -> new RuntimeException("Email ou senha inválidos"));
-
-        if (!u.isAtivo())
-            throw new RuntimeException("Usuário inativo. Contate o administrador.");
-
+        if (!u.isAtivo()) throw new RuntimeException("Usuário inativo. Contate o administrador.");
         if (!encoder.matches(req.senha(), u.getSenhaHash()))
             throw new RuntimeException("Email ou senha inválidos");
-
-        refreshRepo.deleteByUsuarioId(u.getId());
-
-        String accessToken  = jwtService.gerar(
-                u.getId(), u.getEmail(), u.getRole().name(),
-                u.getTenant().getId(),           // ← novo
-                u.getTenant().getPlano().name()  // ← novo
-        );
-        String refreshToken = criarRefreshToken(u);
-
-        return ResponseEntity.ok(new AuthResponse(accessToken, refreshToken,
-                u.getId(), u.getNome(), u.getEmail(), u.getRole().name()));
+        return ResponseEntity.ok(buildLoginResponse(u));
     }
 
-    // ✅ registro — cria tenant + usuário ADMIN_TENANT
+    @Operation(summary = "Registro de novo produtor",
+        description = "Cria tenant com trial de 14 dias e retorna JWT de acesso.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Conta criada com sucesso"),
+        @ApiResponse(responseCode = "400", description = "Email já cadastrado ou dados inválidos")
+    })
     @PostMapping("/registro")
     @Transactional
-    public ResponseEntity<?> register(@Valid @RequestBody RegistroRequest req) {
+    public ResponseEntity<?> registro(@Valid @RequestBody RegistroRequest req) {
+        if (usuarioRepo.existsByEmail(req.email()))
+            throw new RuntimeException("Email já cadastrado");
         try {
-            if (usuarioRepo.existsByEmail(req.email()))
-                return ResponseEntity.badRequest()
-                        .body(Map.of("erro", "Email já cadastrado"));
-
-            // 1. cria o tenant
+            // Cria o tenant com trial de 14 dias
             Tenant tenant = new Tenant();
-            tenant.setNome(req.nomeProdutor());   // nome do produtor/empresa
+            tenant.setNome(req.nomeProdutor());
             tenant.setEmail(req.email());
-            tenant.setTrialExpira(LocalDate.now().plusDays(14));
+            tenant.setPlano(com.cogumelos.enums.PlanoType.TRIAL);
+            tenant.setStatus(com.cogumelos.enums.StatusTenant.TRIAL);
+            tenant.setTrialExpira(java.time.LocalDate.now().plusDays(14));
             tenantRepo.save(tenant);
 
-            // 2. copia insumos do catálogo padrão para o novo tenant
+            // Copia insumos do catálogo padrão
             tenantService.inicializarTenant(tenant);
 
-            // 4. cria o usuário ADMIN_TENANT vinculado ao tenant
+            // Cria o usuário ADMIN_TENANT
             Usuario u = new Usuario();
             u.setId(UUID.randomUUID().toString());
             u.setNome(req.nome());
             u.setEmail(req.email());
             u.setSenhaHash(encoder.encode(req.senha()));
-            u.setRole(Role.PRODUTOR);         // dono da conta
+            u.setRole(Role.ADMIN_TENANT);
             u.setTenant(tenant);
             usuarioRepo.save(u);
 
-            // 5. gera token já com tenantId e plano
-            String accessToken = jwtService.gerar(
-                    u.getId(), u.getEmail(), u.getRole().name(),
-                    tenant.getId(),
-                    tenant.getPlano().name()
-            );
-            String refreshToken = criarRefreshToken(u);
-
-            return ResponseEntity.status(201).body(new AuthResponse(accessToken, refreshToken,
-                    u.getId(), u.getNome(), u.getEmail(), u.getRole().name()));
+            return ResponseEntity.status(201).body(buildLoginResponse(u));
         } catch (Exception e) {
             log.error("Erro no registro: {}", e.getMessage(), e);
             throw e;
         }
     }
 
-    // ✅ refresh — passa tenantId e plano no novo token
+    @Operation(summary = "Renovar token de acesso",
+        description = "Troca refresh token válido por novo par de tokens.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Tokens renovados"),
+        @ApiResponse(responseCode = "400", description = "Refresh token inválido ou expirado")
+    })
     @PostMapping("/refresh")
     @Transactional
     public ResponseEntity<?> refresh(@RequestBody Map<String, String> body) {
-        String tokenStr = body.get("refreshToken");
-        if (tokenStr == null)
-            return ResponseEntity.badRequest()
-                    .body(Map.of("erro", "refreshToken obrigatório"));
-
-        RefreshToken rt = refreshRepo.findByToken(tokenStr)
-                .orElseThrow(() -> new RuntimeException("Token inválido"));
-
-        if (!rt.isValido()) {
-            refreshRepo.delete(rt);
-            throw new RuntimeException("Token expirado. Faça login novamente.");
-        }
-
-        rt.setUsado(true);
-        refreshRepo.save(rt);
-
-        Usuario u = rt.getUsuario();
-        if (!u.isAtivo()) throw new RuntimeException("Usuário inativo.");
-
-        String novoAccess  = jwtService.gerar(
-                u.getId(), u.getEmail(), u.getRole().name(),
-                u.getTenant().getId(),           // ← novo
-                u.getTenant().getPlano().name()  // ← novo
-        );
-        String novoRefresh = criarRefreshToken(u);
-
-        return ResponseEntity.ok(new AuthResponse(novoAccess, novoRefresh,
-                u.getId(), u.getNome(), u.getEmail(), u.getRole().name()));
+        String rt = body.get("refreshToken");
+        RefreshToken token = refreshRepo.findByToken(rt)
+                .orElseThrow(() -> new RuntimeException("Refresh token inválido"));
+        if (!token.isValido()) throw new RuntimeException("Refresh token expirado ou já utilizado");
+        token.setUsado(true);
+        refreshRepo.save(token);
+        return ResponseEntity.ok(buildLoginResponse(token.getUsuario()));
     }
 
+    @Operation(summary = "Logout", description = "Invalida o refresh token informado.")
     @PostMapping("/logout")
     @Transactional
-    public ResponseEntity<?> logout(@RequestBody Map<String, String> body) {
-        String tokenStr = body.get("refreshToken");
-        if (tokenStr != null) {
-            refreshRepo.findByToken(tokenStr).ifPresent(rt -> {
-                rt.setUsado(true);
-                refreshRepo.save(rt);
-            });
-        }
-        return ResponseEntity.ok(Map.of("mensagem", "Logout realizado com sucesso"));
+    public ResponseEntity<Void> logout(@RequestBody Map<String, String> body) {
+        String rt = body.get("refreshToken");
+        refreshRepo.findByToken(rt).ifPresent(t -> { t.setUsado(true); refreshRepo.save(t); });
+        return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Dados do usuário logado")
+    @ApiResponse(responseCode = "200", description = "Dados do usuário autenticado")
     @GetMapping("/me")
     public ResponseEntity<?> me(org.springframework.security.core.Authentication auth) {
         String userId = (String) auth.getPrincipal();
-        return usuarioRepo.findById(userId)
-                .map(u -> ResponseEntity.ok(new AuthResponse(null, null,
-                        u.getId(), u.getNome(), u.getEmail(), u.getRole().name())))
-                .orElse(ResponseEntity.notFound().build());
+        Usuario u = usuarioRepo.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        return ResponseEntity.ok(Map.of(
+                "id", u.getId(), "nome", u.getNome(),
+                "email", u.getEmail(), "role", u.getRole().name()
+        ));
     }
 
-    private String criarRefreshToken(Usuario u) {
+    private Map<String, Object> buildLoginResponse(Usuario u) {
+        String token = jwtService.gerar(
+                u.getId(), u.getEmail(), u.getRole().name(),
+                u.getTenant().getId(), u.getTenant().getPlano().name()
+        );
         RefreshToken rt = new RefreshToken();
         rt.setId(UUID.randomUUID().toString());
         rt.setToken(UUID.randomUUID().toString());
         rt.setUsuario(u);
         rt.setExpiraEm(LocalDateTime.now().plusDays(refreshDays));
         refreshRepo.save(rt);
-        return rt.getToken();
+        return Map.of("token", token, "refreshToken", rt.getToken(),
+                "id", u.getId(), "nome", u.getNome(),
+                "email", u.getEmail(), "role", u.getRole().name());
     }
 }
