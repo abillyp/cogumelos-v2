@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 replace-email.py
-Substitui alessandro.palma@organico4you.com.br pelo email real em todos os arquivos do projeto.
+Substitui alessandro.billy@organico4you.com.br pelo email real em todos os arquivos do projeto.
 
 Uso:
   python replace-email.py              # dry-run
@@ -13,8 +13,8 @@ import sys
 import argparse
 from pathlib import Path
 
-OLD_EMAIL = "alessandro.palma@organico4you.com.br"
-NEW_EMAIL = "alessandro.palma@organico4you.com.br"
+OLD_EMAIL = "alessandro.billy@organico4you.com.br"
+NEW_EMAIL = "alessandro.billy@organico4you.com.br"
 
 IGNORE_DIRS = {
     "node_modules", ".next", "target", ".git",

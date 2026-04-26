@@ -59,7 +59,7 @@ public class SwaggerConfig {
                 .version("2.0.0")
                 .contact(new Contact()
                         .name("Alessandro Billy Palma")
-                        .email("alessandro.palma@organico4you.com.br")
+                        .email("alessandro.billy@organico4you.com.br")
                         .url("https://app.organico4you.com.br")
                 )
                 .license(new License()

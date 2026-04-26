@@ -102,7 +102,7 @@ function PlanoExpiradoContent() {
         {/* Botões */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <a
-            href="mailto:alessandro.palma@organico4you.com.br?subject=Quero assinar um plano"
+            href="mailto:alessandro.billy@organico4you.com.br?subject=Quero assinar um plano"
             style={{
               display: 'block', padding: '14px', borderRadius: 12,
               background: 'var(--purple)', color: '#fff',
