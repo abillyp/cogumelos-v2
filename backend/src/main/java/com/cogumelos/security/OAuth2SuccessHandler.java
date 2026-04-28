@@ -12,8 +12,11 @@
 package com.cogumelos.security;
 
 import com.cogumelos.domain.*;
+import com.cogumelos.enums.PlanoType;
 import com.cogumelos.enums.Role;
+import com.cogumelos.enums.StatusTenant;
 import com.cogumelos.repository.*;
+import com.cogumelos.service.JwtService;
 import com.cogumelos.service.TenantService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -54,6 +57,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         this.refreshRepo   = refreshRepo;
         this.jwtService    = jwtService;
         this.tenantService = tenantService;
+        System.out.println("=== frontendUrl:  ==="+frontendUrl);
     }
 
     @Override
@@ -81,27 +85,32 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         refreshRepo.deleteByUsuarioId(usuario.getId());
 
-        String accessToken  = jwtService.gerar(
+        String accessToken = jwtService.gerar(
                 usuario.getId(), usuario.getEmail(), usuario.getRole().name(),
                 usuario.getTenant().getId(),
-                usuario.getTenant().getPlano().name()
+                usuario.getTenant().getPlano().name(),
+                "GOOGLE"
         );
         String refreshToken = criarRefreshToken(usuario);
 
         response.sendRedirect(frontendUrl + "/oauth2/callback"
                 + "?token=" + accessToken
-                + "&refreshToken=" + refreshToken);
+                + "&refreshToken=" + refreshToken
+                + "&loginType=GOOGLE");
     }
 
     private Usuario criarUsuario(String email, String nome) {
+        System.out.println("=== criarUsuario chamado para email: ==="+ email);
         Tenant tenant = new Tenant();
         tenant.setNome(nome != null ? nome : email);
         tenant.setEmail(email);
+        tenant.setPlano(PlanoType.BASICO);
+        tenant.setStatus(StatusTenant.TRIAL);
         tenant.setTrialExpira(LocalDate.now().plusDays(14));
         tenantRepo.save(tenant);
-
+        System.out.println("=== tenant salvo");
         tenantService.inicializarTenant(tenant);
-
+        System.out.println("=== tenant salvo2");
         Usuario u = new Usuario();
         u.setId(UUID.randomUUID().toString());
         u.setNome(nome != null ? nome : email);

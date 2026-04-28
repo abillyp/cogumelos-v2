@@ -9,13 +9,14 @@
  * Contato: alessandro.billy@organico4you.com.br
  */
 
-package com.cogumelos.security;
+package com.cogumelos.filter;
 
 import com.cogumelos.domain.*;
 import com.cogumelos.enums.PlanoType;
 import com.cogumelos.enums.Role;
 import com.cogumelos.enums.StatusTenant;
 import com.cogumelos.repository.*;
+import com.cogumelos.service.JwtService;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -43,12 +44,13 @@ class TrialFilterTest {
     @Autowired TenantRepository     tenantRepo;
     @Autowired UsuarioRepository    usuarioRepo;
     @Autowired BCryptPasswordEncoder encoder;
-    @Autowired JwtService           jwtService;
+    @Autowired
+    JwtService jwtService;
 
     private String gerarToken(Tenant tenant, Usuario usuario) {
         return "Bearer " + jwtService.gerar(
                 usuario.getId(), usuario.getEmail(),
-                usuario.getRole().name(), tenant.getId(), tenant.getPlano().name()
+                usuario.getRole().name(), tenant.getId(), tenant.getPlano().name(), "EMAIL"
         );
     }
 

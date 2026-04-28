@@ -19,13 +19,27 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
+  mail:
+    host: smtp.hostinger.com
+    port: 465
+    username: ${MAIL_USER:alessandro.billy@organico4you.com.br}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+          starttls:
+            enable: false
 
 server:
-  port: 8081
+  port: 8080
+  forward-headers-strategy: none
 
 jwt:
   secret: cogumelos-secret-key-minimo-32-caracteres-seguro
-  expiration: 900000
+  expiration: 10000
   refresh-expiration-days: 30
 
 security:
@@ -38,10 +52,11 @@ security:
           scope:
             - email
             - profile
-          redirect-uri: "http://localhost:8081/api/auth/oauth2/callback/google"
+          redirect-uri: "http://localhost:8080/api/auth/oauth2/callback/google"
 
 app:
   frontend-url: http://localhost:3000
+  base-url: http://localhost:8080
 
 management:
   endpoints:
@@ -51,6 +66,9 @@ management:
   endpoint:
     health:
       show-details: never
+  health:
+    mail:
+      enabled: false
 
 logging:
   level:

@@ -10,7 +10,6 @@ import { useAuth } from '@/hooks/useAuth'
 import { api, saveTokens } from '@/lib/api'
 import { AuthUser } from '@/lib/types'
 
-// Componente interno que usa useSearchParams — precisa estar dentro do Suspense
 function CallbackHandler() {
   const router    = useRouter()
   const params    = useSearchParams()
@@ -20,6 +19,7 @@ function CallbackHandler() {
   useEffect(() => {
     const token        = params.get('token')
     const refreshToken = params.get('refreshToken')
+    const loginType    = params.get('loginType') ?? 'GOOGLE'
     const erroParam    = params.get('erro')
 
     if (erroParam) {
@@ -44,6 +44,7 @@ function CallbackHandler() {
       .then((data: any) => {
         login(token, refreshToken, {
           id: data.id, nome: data.nome, email: data.email, role: data.role,
+          loginType: loginType as 'GOOGLE' | 'EMAIL',
         } as AuthUser)
         router.replace('/')
       })

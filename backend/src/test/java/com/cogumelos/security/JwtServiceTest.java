@@ -11,6 +11,7 @@
 
 package com.cogumelos.security;
 
+import com.cogumelos.service.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,7 +37,7 @@ class JwtServiceTest {
     @Test
     @DisplayName("gerar() deve criar token com claims corretos")
     void gerar_deveConterClaims() {
-        String token = jwtService.gerar("user-1", "billy@test.com", "ADMIN_TENANT", 42L, "TRIAL");
+        String token = jwtService.gerar("user-1", "billy@test.com", "ADMIN_TENANT", 42L, "TRIAL", "EMAIL");
 
         assertThat(token).isNotBlank();
         assertThat(jwtService.getUserId(token)).isEqualTo("user-1");
@@ -49,14 +50,14 @@ class JwtServiceTest {
     @Test
     @DisplayName("isValid() deve retornar true para token válido")
     void isValid_tokenValido_deveRetornarTrue() {
-        String token = jwtService.gerar("user-1", "test@test.com", "PRODUTOR", 1L, "TRIAL");
+        String token = jwtService.gerar("user-1", "test@test.com", "PRODUTOR", 1L, "TRIAL", "EMAIL");
         assertThat(jwtService.isValid(token)).isTrue();
     }
 
     @Test
     @DisplayName("isValid() deve retornar false para token adulterado")
     void isValid_tokenAdulterado_deveRetornarFalse() {
-        String token = jwtService.gerar("user-1", "test@test.com", "PRODUTOR", 1L, "TRIAL");
+        String token = jwtService.gerar("user-1", "test@test.com", "PRODUTOR", 1L, "TRIAL", "EMAIL");
         String adulterado = token.substring(0, token.length() - 5) + "XXXXX";
         assertThat(jwtService.isValid(adulterado)).isFalse();
     }
@@ -65,7 +66,7 @@ class JwtServiceTest {
     @DisplayName("isValid() deve retornar false para token expirado")
     void isValid_tokenExpirado_deveRetornarFalse() {
         ReflectionTestUtils.setField(jwtService, "expiration", -1000L); // já expirado
-        String token = jwtService.gerar("user-1", "test@test.com", "PRODUTOR", 1L, "TRIAL");
+        String token = jwtService.gerar("user-1", "test@test.com", "PRODUTOR", 1L, "TRIAL", "EMAIL");
         assertThat(jwtService.isValid(token)).isFalse();
     }
 
@@ -79,7 +80,7 @@ class JwtServiceTest {
     @Test
     @DisplayName("tokens gerados com secrets diferentes devem ser inválidos entre si")
     void isValid_secretDiferente_deveRetornarFalse() {
-        String token = jwtService.gerar("user-1", "test@test.com", "PRODUTOR", 1L, "TRIAL");
+        String token = jwtService.gerar("user-1", "test@test.com", "PRODUTOR", 1L, "TRIAL", "EMAIL");
 
         JwtService outro = new JwtService();
         ReflectionTestUtils.setField(outro, "secret", "outro-secret-completamente-diferente-ok");

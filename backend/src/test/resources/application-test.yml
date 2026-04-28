@@ -4,7 +4,17 @@ spring:
     driver-class-name: org.h2.Driver
     username: sa
     password:
-
+  mail:
+    host: localhost
+    port: 3025
+    username: test@test.com
+    password: test
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
@@ -32,3 +42,7 @@ jwt:
 
 app:
   frontend-url: http://localhost:3000
+management:
+  health:
+    mail:
+      enabled: false

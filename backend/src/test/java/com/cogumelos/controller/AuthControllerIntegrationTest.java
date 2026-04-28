@@ -15,7 +15,7 @@ import com.cogumelos.domain.*;
 import com.cogumelos.enums.PlanoType;
 import com.cogumelos.enums.Role;
 import com.cogumelos.repository.*;
-import com.cogumelos.security.JwtService;
+import com.cogumelos.service.JwtService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -210,7 +210,7 @@ class AuthControllerIntegrationTest {
     void rotaProtegida_comToken_deveRetornar200() throws Exception {
         String token = jwtService.gerar(
                 usuario.getId(), usuario.getEmail(),
-                usuario.getRole().name(), tenant.getId(), tenant.getPlano().name()
+                usuario.getRole().name(), tenant.getId(), tenant.getPlano().name(), "EMAIL"
         );
 
         mockMvc.perform(get("/api/experimentos")
@@ -233,7 +233,7 @@ class AuthControllerIntegrationTest {
 
         String token = jwtService.gerar(
                 produtor.getId(), produtor.getEmail(),
-                "PRODUTOR", tenant.getId(), "TRIAL"
+                "PRODUTOR", tenant.getId(), "TRIAL", "EMAIL"
         );
 
         mockMvc.perform(post("/api/insumos")

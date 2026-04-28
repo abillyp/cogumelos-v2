@@ -9,7 +9,7 @@
  * Contato: alessandro.billy@organico4you.com.br
  */
 
-package com.cogumelos.security;
+package com.cogumelos.service;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
@@ -35,17 +35,22 @@ public class JwtService {
 
     // ✅ agora recebe tenantId e plano
     public String gerar(String userId, String email, String role,
-                        Long tenantId, String plano) {
+                        Long tenantId, String plano, String loginType) {
         return Jwts.builder()
                 .subject(userId)
                 .claim("email", email)
                 .claim("role", role)
-                .claim("tenantId", tenantId)   // ← novo
-                .claim("plano", plano)         // ← novo
+                .claim("tenantId", tenantId)
+                .claim("plano", plano)
+                .claim("loginType", loginType)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(key())
                 .compact();
+    }
+
+    public String extractLoginType(String token) {
+        return getClaims(token).get("loginType", String.class);
     }
 
     // ✅ retorna boolean — compatível com TenantFilter

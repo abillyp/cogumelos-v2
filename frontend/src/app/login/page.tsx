@@ -23,10 +23,10 @@ function LoginContent() {
   useEffect(() => {
     const erroParam = searchParams.get('erro')
     const msgs: Record<string, string> = {
-      trial_expirado:   'Período de trial encerrado. Assine um plano para continuar.',
+      trial_expirado:      'Período de trial encerrado. Assine um plano para continuar.',
       assinatura_expirada: 'Assinatura expirada. Renove seu plano para continuar.',
-      cancelado:        'Assinatura cancelada. Entre em contato para reativar.',
-      sessao_expirada:  'Sua sessão expirou. Faça login novamente.',
+      cancelado:           'Assinatura cancelada. Entre em contato para reativar.',
+      sessao_expirada:     'Sua sessão expirou. Faça login novamente.',
     }
     if (erroParam && msgs[erroParam]) setErro(msgs[erroParam])
   }, [searchParams])
@@ -41,6 +41,7 @@ function LoginContent() {
 
       login(data.token, data.refreshToken, {
         id: data.id, nome: data.nome, email: data.email, role: data.role,
+        loginType: data.loginType,
       } as AuthUser)
       router.push('/')
     } catch (err: any) {
@@ -144,6 +145,20 @@ function LoginContent() {
             <button type="submit" disabled={loading} className="btn-primary" style={{ marginTop: 4 }}>
               {loading ? 'Aguarde...' : tab === 'login' ? 'Entrar' : 'Criar conta'}
             </button>
+
+            {/* Link esqueci minha senha — só na aba login */}
+            {tab === 'login' && (
+              <button
+                type="button"
+                onClick={() => router.push('/esqueci-minha-senha')}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 13, color: '#888', textAlign: 'center', padding: '4px 0',
+                }}
+              >
+                Esqueci minha senha
+              </button>
+            )}
           </form>
         </div>
       </div>

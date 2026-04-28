@@ -11,6 +11,7 @@
 
 package com.cogumelos.security;
 
+import com.cogumelos.service.JwtService;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

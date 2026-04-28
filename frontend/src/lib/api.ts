@@ -104,7 +104,11 @@ export const api = {
       body: JSON.stringify({ refreshToken }),
     }),
     me: () => req('/auth/me'),
+    esqueciSenha:    (email: string) => req('/auth/esqueci-senha', { method: 'POST', body: JSON.stringify({ email }) }),
+    redefinirSenha:  (token: string, novaSenha: string) => req('/auth/redefinir-senha', { method: 'POST', body: JSON.stringify({ token, novaSenha }) }),
+    alterarSenha:    (senhaAtual: string, novaSenha: string) => req('/auth/alterar-senha', { method: 'PATCH', body: JSON.stringify({ senhaAtual, novaSenha }) }),
   },
+
   admin: {
     usuarios: {
       listar:    ()                           => req('/admin/usuarios'),

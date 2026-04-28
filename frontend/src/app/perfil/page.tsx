@@ -4,9 +4,11 @@
 // Contato: alessandro.billy@organico4you.com.br
 
 'use client'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import ProtectedRoute from '@/components/ProtectedRoute'
+import { api } from '@/lib/api'
 
 export default function PerfilPage() {
   return <ProtectedRoute><Perfil /></ProtectedRoute>
@@ -19,6 +21,7 @@ function Perfil() {
   if (!user) return null
 
   const inicial = user.nome.charAt(0).toUpperCase()
+  const isOAuth2 = user.loginType === 'GOOGLE'
 
   return (
     <div style={{ padding: '24px 16px', maxWidth: 480, margin: '0 auto' }}>
@@ -51,7 +54,6 @@ function Perfil() {
         <p style={{ fontSize: 11, fontWeight: 700, color: '#bbb', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 12 }}>
           Conta
         </p>
-
         {[
           { label: 'Nome', value: user.nome },
           { label: 'Email', value: user.email },
@@ -67,13 +69,13 @@ function Perfil() {
         ))}
       </div>
 
-      {/* Links rápidos — só desktop tem navbar, mobile precisa desses atalhos */}
+      {/* Navegação */}
       <div className="card" style={{ marginBottom: 16 }}>
         <p style={{ fontSize: 11, fontWeight: 700, color: '#bbb', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 12 }}>
           Navegação
         </p>
         {[
-          { label: 'Insumos',  href: '/insumos',      emoji: '🌿' },
+          { label: 'Insumos', href: '/insumos', emoji: '🌿' },
           ...(isAdmin ? [{ label: 'Admin', href: '/admin', emoji: '⚙️' }] : []),
         ].map(({ label, href, emoji }) => (
           <button
@@ -93,6 +95,9 @@ function Perfil() {
           </button>
         ))}
       </div>
+
+      {/* Alterar senha — só para usuários email/senha */}
+      {!isOAuth2 && <AlterarSenha />}
 
       {/* Botão sair */}
       <button
@@ -116,6 +121,77 @@ function Perfil() {
       <p style={{ fontSize: 11, color: '#ccc', textAlign: 'center', marginTop: 24 }}>
         🍄 cogumelos.app
       </p>
+    </div>
+  )
+}
+
+function AlterarSenha() {
+  const [aberto, setAberto] = useState(false)
+  const [senhaAtual, setSenhaAtual] = useState('')
+  const [novaSenha, setNovaSenha] = useState('')
+  const [confirmar, setConfirmar] = useState('')
+  const [erro, setErro] = useState('')
+  const [sucesso, setSucesso] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit() {
+    setErro('')
+    if (novaSenha !== confirmar) { setErro('As senhas não coincidem.'); return }
+    if (novaSenha.length < 6) { setErro('Mínimo 6 caracteres.'); return }
+    setLoading(true)
+    try {
+      await api.auth.alterarSenha(senhaAtual, novaSenha)
+      setSucesso(true)
+      setSenhaAtual(''); setNovaSenha(''); setConfirmar('')
+      setTimeout(() => { setSucesso(false); setAberto(false) }, 2000)
+    } catch (e: any) {
+      setErro(e.message || 'Erro ao alterar senha.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <button onClick={() => setAberto(!aberto)} style={{
+        width: '100%', display: 'flex', justifyContent: 'space-between',
+        alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+      }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: '#111' }}>🔒 Alterar senha</span>
+        <span style={{ color: '#bbb', fontSize: 16 }}>{aberto ? '∧' : '›'}</span>
+      </button>
+
+      {aberto && (
+        <div style={{ marginTop: 16 }}>
+          {[
+            { label: 'Senha atual', value: senhaAtual, set: setSenhaAtual },
+            { label: 'Nova senha', value: novaSenha, set: setNovaSenha },
+            { label: 'Confirmar nova senha', value: confirmar, set: setConfirmar },
+          ].map(({ label, value, set }) => (
+            <div key={label} style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>
+                {label}
+              </label>
+              <input
+                type="password"
+                value={value}
+                onChange={e => set(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #E8E8E8', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+          ))}
+
+          {erro && <p style={{ color: 'var(--red)', fontSize: 13, marginBottom: 8 }}>{erro}</p>}
+          {sucesso && <p style={{ color: 'var(--green)', fontSize: 13, marginBottom: 8 }}>✓ Senha alterada com sucesso!</p>}
+
+          <button onClick={handleSubmit} disabled={loading} style={{
+            width: '100%', padding: '12px', background: 'var(--green)', border: 'none',
+            borderRadius: 12, fontSize: 14, fontWeight: 700, color: '#fff', cursor: 'pointer',
+          }}>
+            {loading ? 'Salvando...' : 'Salvar nova senha'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

@@ -3,13 +3,6 @@
 // Uso não autorizado é expressamente proibido. Ver arquivo LICENSE.
 // Contato: alessandro.billy@organico4you.com.br
 
-export interface AuthUser {
-  id: string
-  nome: string
-  email: string
-  role: 'ADMIN' | 'PRODUTOR'
-}
-
 export interface Insumo {
   id: string
   nome: string
@@ -130,4 +123,12 @@ export interface UsuarioAdmin {
   role: string
   ativo: boolean
   criadoEm: string
+}
+
+export interface AuthUser {
+  id: string
+  nome: string
+  email: string
+  role: 'ADMIN' | 'ADMIN_TENANT' | 'PRODUTOR'
+  loginType: 'GOOGLE' | 'EMAIL'
 }

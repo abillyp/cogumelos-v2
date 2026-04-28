@@ -15,7 +15,7 @@ import com.cogumelos.domain.*;
 import com.cogumelos.enums.PlanoType;
 import com.cogumelos.enums.Role;
 import com.cogumelos.repository.*;
-import com.cogumelos.security.JwtService;
+import com.cogumelos.service.JwtService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +28,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -80,7 +79,7 @@ class ExperimentoControllerIntegrationTest {
 
         token = "Bearer " + jwtService.gerar(
                 usuario.getId(), usuario.getEmail(),
-                "ADMIN_TENANT", tenant.getId(), "TRIAL"
+                "ADMIN_TENANT", tenant.getId(), "TRIAL", "EMAIL"
         );
 
         // Espécie
@@ -225,7 +224,7 @@ class ExperimentoControllerIntegrationTest {
 
         String tokenOutro = "Bearer " + jwtService.gerar(
                 usuarioOutro.getId(), usuarioOutro.getEmail(),
-                "ADMIN_TENANT", outro.getId(), "TRIAL"
+                "ADMIN_TENANT", outro.getId(), "TRIAL", "EMAIL"
         );
 
         // tenta acessar experimento do tenant principal com token do outro

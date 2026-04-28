@@ -4,6 +4,7 @@ import com.cogumelos.security.CookieOAuth2RequestRepository;
 import com.cogumelos.security.JwtFilter;
 import com.cogumelos.security.OAuth2SuccessHandler;
 import com.cogumelos.security.TrialFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -34,9 +35,9 @@ public class SecurityConfig {
                           TrialFilter trialFilter,
                           OAuth2SuccessHandler oAuth2SuccessHandler,
                           CookieOAuth2RequestRepository cookieOAuth2RequestRepository) {
-        this.jwtFilter                    = jwtFilter;
-        this.trialFilter                  = trialFilter;
-        this.oAuth2SuccessHandler         = oAuth2SuccessHandler;
+        this.jwtFilter                     = jwtFilter;
+        this.trialFilter                   = trialFilter;
+        this.oAuth2SuccessHandler          = oAuth2SuccessHandler;
         this.cookieOAuth2RequestRepository = cookieOAuth2RequestRepository;
     }
 
@@ -56,10 +57,11 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/oauth2/**",
                                 "/actuator/health",
-                                // Swagger UI
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**",
+                                "/api/auth/esqueci-senha",
+                                "/api/auth/redefinir-senha",
                                 "/v3/api-docs"
                         ).permitAll()
                         .requestMatchers("/api/insumos/**", "/api/especies/**").authenticated()
@@ -69,6 +71,18 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/tenants/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
+                )
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            String path = request.getRequestURI();
+                            if (path.startsWith("/api/")) {
+                                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                response.setContentType("application/json");
+                                response.getWriter().write("{\"error\":\"Não autenticado\"}");
+                            } else {
+                                response.sendRedirect("/oauth2/authorization/google");
+                            }
+                        })
                 )
                 .oauth2Login(oauth -> oauth
                         .authorizationEndpoint(ae -> ae
@@ -90,9 +104,6 @@ public class SecurityConfig {
     public CorsConfigurationSource corsSource() {
         CorsConfiguration cfg = new CorsConfiguration();
 
-        // FRONTEND_URLS aceita múltiplas origens separadas por vírgula
-        // Ex local:  http://localhost:3000,http://192.168.15.13:3000
-        // Ex produção: https://organico4you.com.br
         String frontendUrls = System.getenv("FRONTEND_URLS");
         String frontendUrl  = System.getenv("FRONTEND_URL");
 
