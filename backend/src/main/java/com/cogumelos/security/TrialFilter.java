@@ -43,6 +43,8 @@ public class TrialFilter extends OncePerRequestFilter {
             "/api/auth/registro",
             "/api/auth/refresh",
             "/api/auth/logout",
+            "/api/auth/esqueci-senha",
+            "/api/auth/redefinir-senha",
             "/actuator/health"
     );
 
