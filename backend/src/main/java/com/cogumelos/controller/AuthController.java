@@ -152,20 +152,25 @@ public class AuthController {
     @PostMapping("/esqueci-senha")
     @Transactional
     public ResponseEntity<?> esqueciSenha(@RequestBody Map<String, String> body) {
-        String email = body.get("email");
-        usuarioRepo.findByEmail(email).ifPresent(u -> {
-            if (u.getSenhaHash().equals("OAUTH2_NO_PASSWORD")) return;
-            passwordResetRepo.deleteByUsuarioId(u.getId());
-            PasswordResetToken prt = new PasswordResetToken();
-            prt.setId(UUID.randomUUID().toString());
-            prt.setToken(UUID.randomUUID().toString());
-            prt.setUsuario(u);
-            prt.setExpiraEm(LocalDateTime.now().plusHours(1));
-            passwordResetRepo.save(prt);
-            emailService.enviarRecuperacaoSenha(email, prt.getToken());
-        });
-        // Sempre retorna 200 para não revelar se o email existe
-        return ResponseEntity.ok(Map.of("mensagem", "Se o email estiver cadastrado, você receberá as instruções em breve."));
+        try {
+            String email = body.get("email");
+            log.info("=== esqueci-senha: {}", email);
+            usuarioRepo.findByEmail(email).ifPresent(u -> {
+                if (u.getSenhaHash().equals("OAUTH2_NO_PASSWORD")) return;
+                passwordResetRepo.deleteByUsuarioId(u.getId());
+                PasswordResetToken prt = new PasswordResetToken();
+                prt.setId(UUID.randomUUID().toString());
+                prt.setToken(UUID.randomUUID().toString());
+                prt.setUsuario(u);
+                prt.setExpiraEm(LocalDateTime.now().plusHours(1));
+                passwordResetRepo.save(prt);
+                emailService.enviarRecuperacaoSenha(email, prt.getToken());
+            });
+            return ResponseEntity.ok(Map.of("mensagem", "Se o email estiver cadastrado, você receberá as instruções em breve."));
+        } catch (Exception e) {
+            log.error("=== esqueci-senha erro: {}", e.getMessage(), e);
+            throw e;
+        }
     }
 
     @Operation(summary = "Redefinir senha com token")
