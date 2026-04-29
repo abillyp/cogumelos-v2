@@ -75,4 +75,19 @@ class FormulacaoController {
         service.deletar(id);
         return ResponseEntity.noContent().build();
     }
+
+    @Operation(summary = "Verifica se formulação está em uso em experimentos")
+    @GetMapping("/{id}/em-uso")
+    public ResponseEntity<Boolean> emUso(
+            @Parameter(description = "ID da formulação") @PathVariable String id) {
+        return ResponseEntity.ok(service.emUso(id));
+    }
+
+    @Operation(summary = "Atualizar formulação completa")
+    @PutMapping("/{id}")
+    public Dtos.FormulacaoResponse atualizar(
+            @Parameter(description = "ID da formulação") @PathVariable String id,
+            @Valid @RequestBody Dtos.FormulacaoRequest req) {
+        return service.atualizar(id, req);
+    }
 }

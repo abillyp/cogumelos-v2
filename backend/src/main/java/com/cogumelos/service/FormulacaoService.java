@@ -31,15 +31,17 @@ public class FormulacaoService {
     private final EspecieCogumeloRepository especieRepo;
     private final InsumoRepository insumoRepo;
     private final UsuarioRepository usuarioRepo;
+    private final ExperimentoRepository experimentoRepository;
 
     public FormulacaoService(FormulacaoRepository repo,
                              EspecieCogumeloRepository especieRepo,
                              InsumoRepository insumoRepo,
-                             UsuarioRepository usuarioRepo) {
+                             UsuarioRepository usuarioRepo, ExperimentoRepository experimentoRepository) {
         this.repo        = repo;
         this.especieRepo = especieRepo;
         this.insumoRepo  = insumoRepo;
         this.usuarioRepo = usuarioRepo;
+        this.experimentoRepository = experimentoRepository;
     }
 
     private Long tenantId() {
@@ -111,6 +113,48 @@ public class FormulacaoService {
     @Transactional
     public void deletar(String id) {
         buscarSeguro(id);
+        if (experimentoRepository.existsByFormulacaoId(id)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Não é possível excluir uma formulação que está sendo usada em experimentos.");
+        }
         repo.deleteById(id);
+    }
+
+    public boolean emUso(String id) {
+        buscarSeguro(id);
+        return experimentoRepository.existsByFormulacaoId(id);
+    }
+
+    @Transactional
+    public FormulacaoResponse atualizar(String id, FormulacaoRequest req) {
+        Long tid = tenantId();
+        Formulacao f = buscarSeguro(id);
+
+        EspecieCogumelo especie = especieRepo.findById(req.especieId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Espécie não encontrada"));
+
+        f.setNome(req.nome());
+        f.setEspecie(especie);
+        f.getInsumos().clear();
+
+        for (FormulacaoInsumoItem item : req.insumos()) {
+            Insumo insumo = insumoRepo.findByIdAndTenantId(item.insumoId(), tid)
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND, "Insumo não encontrado: " + item.insumoId()));
+
+            FormulacaoInsumo fi = new FormulacaoInsumo();
+            fi.setId(UUID.randomUUID().toString());
+            fi.setTenantId(tid);
+            fi.setFormulacao(f);
+            fi.setInsumo(insumo);
+            fi.setPesoRealKg(item.pesoRealKg());
+            fi.setUmidadePct(item.umidadePct());
+            f.getInsumos().add(fi);
+        }
+
+        f.recalcular();
+        return FormulacaoResponse.from(repo.save(f));
     }
 }

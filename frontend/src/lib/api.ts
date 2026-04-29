@@ -141,6 +141,8 @@ export const api = {
     criar:           (body: unknown)               => req('/formulacoes', { method: 'POST', body: JSON.stringify(body) }),
     atualizarStatus: (id: string, status: string)  => req(`/formulacoes/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
     deletar:         (id: string)                  => req(`/formulacoes/${id}`, { method: 'DELETE' }),
+    emUso:           (id: string)                  => req(`/formulacoes/${id}/em-uso`),
+    atualizar:       (id: string, body: unknown)   => req(`/formulacoes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   },
   experimentos: {
     listar:         ()               => req('/experimentos'),

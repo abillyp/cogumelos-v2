@@ -32,4 +32,6 @@ public interface ExperimentoRepository extends JpaRepository<Experimento, String
 
     // ✅ código único por tenant (não global)
     boolean existsByCodigoAndTenantId(String codigo, Long tenantId);
+
+    boolean existsByFormulacaoId(String id);
 }
