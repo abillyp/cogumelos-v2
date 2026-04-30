@@ -47,6 +47,9 @@ export interface Formulacao {
   status: 'RASCUNHO' | 'ATIVA' | 'ARQUIVADA'
   cnDentroFaixa: boolean
   insumos: FormulacaoInsumoResponse[]
+  umidadeDesejada: number | null
+  pesoBlocoKg: number | null
+  totalBlocos: number | null
 }
 
 

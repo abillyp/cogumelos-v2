@@ -107,7 +107,7 @@ class FormulacaoServiceTest {
     @DisplayName("criar() deve salvar formulação com insumos e calcular C/N")
     void criar_deveCalcularCnEPersistir() {
         FormulacaoInsumoItem item = new FormulacaoInsumoItem("ins-1", 10.0, 0.40);
-        FormulacaoRequest req = new FormulacaoRequest("esp-1", "Shimeji A3", List.of(item));
+        FormulacaoRequest req = new FormulacaoRequest("esp-1", "Shimeji A3", List.of(item), 70.5, 2.0, 20);
 
         when(usuarioRepo.findById("user-1")).thenReturn(Optional.of(usuario));
         when(especieRepo.findById("esp-1")).thenReturn(Optional.of(especie));
@@ -125,7 +125,7 @@ class FormulacaoServiceTest {
     @DisplayName("criar() deve lançar 404 quando insumo não pertence ao tenant")
     void criar_insumoDeOutroTenant_deveLancar404() {
         FormulacaoInsumoItem item = new FormulacaoInsumoItem("ins-outro-tenant", 10.0, 0.40);
-        FormulacaoRequest req = new FormulacaoRequest("esp-1", "Teste", List.of(item));
+        FormulacaoRequest req = new FormulacaoRequest("esp-1", "Teste", List.of(item), 70.5, 2.0, 20);
 
         when(usuarioRepo.findById("user-1")).thenReturn(Optional.of(usuario));
         when(especieRepo.findById("esp-1")).thenReturn(Optional.of(especie));

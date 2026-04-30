@@ -55,6 +55,16 @@ class GlobalExceptionHandler {
             .body(Map.of("erro", msg != null ? msg : "Requisição inválida"));
     }
 
+    @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, String>> handleValidation(
+            org.springframework.web.bind.MethodArgumentNotValidException ex) {
+        String mensagem = ex.getBindingResult().getFieldErrors().stream()
+                .map(e -> e.getDefaultMessage())
+                .collect(java.util.stream.Collectors.joining(" | "));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("erro", mensagem));
+    }
+
     @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, String>> handleConstraint(
             org.springframework.dao.DataIntegrityViolationException ex) {

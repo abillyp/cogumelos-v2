@@ -83,6 +83,9 @@ public class FormulacaoService {
         f.setUsuario(usuario);
         f.setNome(req.nome());
         f.setEspecie(especie);
+        f.setUmidade(req.umidadeDesejada());
+        f.setPesoBlocoKg(req.pesoBlocoKg());
+
 
         for (FormulacaoInsumoItem item : req.insumos()) {
             Insumo insumo = insumoRepo.findByIdAndTenantId(item.insumoId(), tid)
@@ -137,6 +140,9 @@ public class FormulacaoService {
 
         f.setNome(req.nome());
         f.setEspecie(especie);
+        f.setUmidade(req.umidadeDesejada());
+        f.setPesoBlocoKg(req.pesoBlocoKg());
+        f.setTotalBlocos(req.totalBlocos());
         f.getInsumos().clear();
 
         for (FormulacaoInsumoItem item : req.insumos()) {

@@ -17,22 +17,32 @@ const BAR_COLORS = ['var(--purple)','var(--teal-m)','var(--amber)','var(--blue)'
 
 function calcular(linhas: Linha[], insumos: Insumo[]) {
   let totalC = 0, totalN = 0, totalPeso = 0, somaPh = 0, countPh = 0
+  let totalPesoSeco = 0, totalPesoUmido = 0
   const contribs: { id: string; nome: string; cKg: number }[] = []
   for (const l of linhas) {
     const ins = insumos.find(i => i.id === l.insumoId)
     if (!ins || !l.pesoRealKg) { contribs.push({ id: l.insumoId, nome: '—', cKg: 0 }); continue }
     const ps  = l.pesoRealKg * (1 - l.umidadePct / 100)
+    const pu  = l.pesoRealKg - ps
     const cKg = ps * ins.carbonoPct
     const nKg = ps * ins.nitrogenioPct
     totalC    += cKg; totalN += nKg; totalPeso += l.pesoRealKg
+    totalPesoSeco  += ps
+    totalPesoUmido += pu
     if (ins.ph !== null) { somaPh += ins.ph; countPh++ }
     contribs.push({ id: l.insumoId, nome: ins.nome, cKg })
   }
   return {
     cnTotal:  totalN > 0 ? totalC / totalN : null,
     phMedio:  countPh > 0 ? somaPh / countPh : null,
-    totalPeso, contribs, totalC,
+    totalPeso, contribs, totalC, totalPesoSeco, totalPesoUmido,
   }
+}
+
+function calcularAgua(totalPesoSeco: number, totalPesoUmido: number, umidadeDesejada: number): number | null {
+  if (umidadeDesejada <= 0 || umidadeDesejada >= 100) return null
+  const agua = (100 * totalPesoSeco + totalPesoUmido * (umidadeDesejada - 100)) / (100 - umidadeDesejada)
+  return agua < 0 ? 0 : agua
 }
 
 // ─── Modal de consulta ───────────────────────────────────────────────────────
@@ -41,7 +51,7 @@ function ModalConsulta({ formulacao, onFechar }: { formulacao: Formulacao, onFec
 
   return (
     <div onClick={onFechar} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, border: '0.5px solid #E8E8E8', padding: '20px', width: '100%', maxWidth: 420, maxHeight: '85vh', overflowY: 'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, border: '0.5px solid #E8E8E8', padding: '20px', width: '100%', maxWidth: 440, maxHeight: '85vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
           <div>
             <p style={{ fontSize: 17, fontWeight: 700, color: '#111', margin: '0 0 6px' }}>{formulacao.nome}</p>
@@ -52,6 +62,7 @@ function ModalConsulta({ formulacao, onFechar }: { formulacao: Formulacao, onFec
           </div>
           <button onClick={onFechar} style={{ background: '#F0F0F0', border: 'none', width: 32, height: 32, borderRadius: '50%', fontSize: 16, color: '#555', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginLeft: 12 }}>✕</button>
         </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
           {[
             { label: 'C/N', value: formulacao.cnTotal?.toFixed(1) ?? '—' },
@@ -64,6 +75,30 @@ function ModalConsulta({ formulacao, onFechar }: { formulacao: Formulacao, onFec
             </div>
           ))}
         </div>
+
+        {(formulacao.umidadeDesejada || formulacao.pesoBlocoKg || formulacao.totalBlocos) && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
+            {formulacao.umidadeDesejada != null && (
+              <div style={{ background: '#E1F5EE', borderRadius: 10, padding: '10px', textAlign: 'center' }}>
+                <p style={{ fontSize: 11, color: '#0F6E56', margin: '0 0 4px' }}>Umidade desejada</p>
+                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#085041' }}>{formulacao.umidadeDesejada}%</p>
+              </div>
+            )}
+            {formulacao.pesoBlocoKg != null && (
+              <div style={{ background: '#E1F5EE', borderRadius: 10, padding: '10px', textAlign: 'center' }}>
+                <p style={{ fontSize: 11, color: '#0F6E56', margin: '0 0 4px' }}>Peso/bloco</p>
+                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#085041' }}>{formulacao.pesoBlocoKg} kg</p>
+              </div>
+            )}
+            {formulacao.totalBlocos != null && (
+              <div style={{ background: '#E1F5EE', borderRadius: 10, padding: '10px', textAlign: 'center' }}>
+                <p style={{ fontSize: 11, color: '#0F6E56', margin: '0 0 4px' }}>Total blocos</p>
+                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#085041' }}>{formulacao.totalBlocos}</p>
+              </div>
+            )}
+          </div>
+        )}
+
         <div style={{ borderTop: '0.5px solid #F0F0F0', paddingTop: 12 }}>
           <p style={{ fontSize: 11, fontWeight: 700, color: '#bbb', textTransform: 'uppercase', letterSpacing: '.04em', margin: '0 0 10px' }}>Composição</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -89,20 +124,30 @@ function ModalEdicao({ formulacao, insumos, especies, onFechar, onSalva }: {
   onFechar: () => void
   onSalva: () => void
 }) {
-  const [nome, setNome]           = useState(formulacao.nome)
-  const [especieId, setEspecieId] = useState(formulacao.especieId)
-  const [linhas, setLinhas]       = useState<Linha[]>(
+  const [nome, setNome]                   = useState(formulacao.nome)
+  const [especieId, setEspecieId]         = useState(formulacao.especieId)
+  const [linhas, setLinhas]               = useState<Linha[]>(
     formulacao.insumos.map(fi => ({
       insumoId:   fi.insumoId,
       pesoRealKg: fi.pesoRealKg,
       umidadePct: Math.round(fi.umidadePct * 100),
     }))
   )
-  const [salvando, setSalvando] = useState(false)
-  const [erro, setErro]         = useState('')
+  const [umidadeDesejada, setUmidadeDesejada] = useState<number | ''>(formulacao.umidadeDesejada ?? '')
+  const [pesoBlocoKg, setPesoBlocoKg]         = useState<number | ''>(formulacao.pesoBlocoKg ?? '')
+  const [salvando, setSalvando]           = useState(false)
+  const [erro, setErro]                   = useState('')
 
   const especie = especies.find(e => e.id === especieId)
-  const { cnTotal } = calcular(linhas, insumos)
+  const { cnTotal, totalPeso, totalPesoSeco, totalPesoUmido } = calcular(linhas, insumos)
+
+  const agua = (umidadeDesejada !== '' && totalPesoSeco > 0)
+    ? calcularAgua(totalPesoSeco, totalPesoUmido, umidadeDesejada as number)
+    : null
+  const pesoFinal = agua !== null ? totalPeso + agua : null
+  const qtdBlocos = (pesoFinal !== null && pesoBlocoKg !== '' && (pesoBlocoKg as number) > 0)
+    ? Math.floor(pesoFinal / (pesoBlocoKg as number))
+    : null
 
   function setLinha(i: number, field: keyof Linha, value: string | number) {
     setLinhas(l => l.map((row, idx) => idx === i ? { ...row, [field]: value } : row))
@@ -110,13 +155,18 @@ function ModalEdicao({ formulacao, insumos, especies, onFechar, onSalva }: {
 
   async function salvar() {
     if (!nome.trim()) { setErro('Preencha o nome.'); return }
+    if (umidadeDesejada === '') { setErro('Informe a umidade desejada.'); return }
+    if (pesoBlocoKg === '') { setErro('Informe o peso por bloco.'); return }
     const validas = linhas.filter(l => l.insumoId && l.pesoRealKg > 0)
     if (!validas.length) { setErro('Adicione pelo menos um insumo.'); return }
     setSalvando(true); setErro('')
     try {
       await api.formulacoes.atualizar(formulacao.id, {
         especieId, nome,
-        insumos: validas.map(l => ({ ...l, umidadePct: l.umidadePct / 100 }))
+        insumos: validas.map(l => ({ ...l, umidadePct: l.umidadePct / 100 })),
+        umidadeDesejada: umidadeDesejada as number,
+        pesoBlocoKg: pesoBlocoKg as number,
+        totalBlocos: qtdBlocos,
       })
       onSalva()
       onFechar()
@@ -158,36 +208,72 @@ function ModalEdicao({ formulacao, insumos, especies, onFechar, onSalva }: {
         </div>
 
         <p style={{ fontSize: 11, fontWeight: 700, color: '#bbb', textTransform: 'uppercase', letterSpacing: '.04em', margin: '0 0 8px' }}>Composição</p>
-            {linhas.map((l, i) => (
-              <div key={i} style={{ marginBottom: 12 }}>
-                {i === 0 && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 28px', gap: 6, marginBottom: 4 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#bbb', textTransform: 'uppercase', letterSpacing: '.04em' }}>Material</span>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#bbb', textTransform: 'uppercase', letterSpacing: '.04em' }}>Peso (kg)</span>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#bbb', textTransform: 'uppercase', letterSpacing: '.04em' }}>Umidade (%)</span>
-                    <span />
-                  </div>
-                )}
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 28px', gap: 6, alignItems: 'center' }}>
-                  <select className="input" value={l.insumoId} onChange={e => setLinha(i, 'insumoId', e.target.value)}>
-                    <option value="">Selecione...</option>
-                    {insumos.map(ins => <option key={ins.id} value={ins.id}>{ins.nome}</option>)}
-                  </select>
-                  <input type="number" min={0} step={0.1} className="input"
-                    value={l.pesoRealKg === 0 ? '' : l.pesoRealKg}
-                    onChange={e => setLinha(i, 'pesoRealKg', e.target.value === '' ? 0 : parseFloat(e.target.value) || 0)} />
-                  <input type="number" min={0} max={100} className="input"
-                    value={l.umidadePct === 0 ? '' : l.umidadePct}
-                    onChange={e => setLinha(i, 'umidadePct', e.target.value === '' ? 0 : parseFloat(e.target.value) || 0)} />
-                  <button onClick={() => setLinhas(l => l.filter((_, idx) => idx !== i))}
-                    style={{ color: '#ddd', fontSize: 18, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>×</button>
-                </div>
-              </div>
-            ))}
-
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 28px', gap: 6, marginBottom: 4 }}>
+          {['Material', 'Peso (kg)', 'Umidade (%)', ''].map((h, i) => (
+            <span key={i} style={{ fontSize: 10, fontWeight: 700, color: '#bbb', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</span>
+          ))}
+        </div>
+        {linhas.map((l, i) => (
+          <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 28px', gap: 6, marginBottom: 8, alignItems: 'center' }}>
+            <select className="input" value={l.insumoId} onChange={e => setLinha(i, 'insumoId', e.target.value)}>
+              <option value="">Selecione...</option>
+              {insumos.map(ins => <option key={ins.id} value={ins.id}>{ins.nome}</option>)}
+            </select>
+            <input type="number" min={0} step={0.1} className="input"
+              value={l.pesoRealKg === 0 ? '' : l.pesoRealKg}
+              onChange={e => setLinha(i, 'pesoRealKg', e.target.value === '' ? 0 : parseFloat(e.target.value) || 0)} />
+            <input type="number" min={0} max={100} className="input"
+              value={l.umidadePct === 0 ? '' : l.umidadePct}
+              onChange={e => setLinha(i, 'umidadePct', e.target.value === '' ? 0 : parseFloat(e.target.value) || 0)} />
+            <button onClick={() => setLinhas(l => l.filter((_, idx) => idx !== i))}
+              style={{ color: '#ddd', fontSize: 18, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>×</button>
+          </div>
+        ))}
         <button className="btn" onClick={() => setLinhas(l => [...l, { insumoId: '', pesoRealKg: 0, umidadePct: 40 }])} style={{ marginBottom: 16 }}>
           + Adicionar insumo
         </button>
+
+        {/* Parâmetros de produção */}
+        <div style={{ borderTop: '0.5px solid #F0F0F0', paddingTop: 14, marginBottom: 14 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: '#bbb', textTransform: 'uppercase', letterSpacing: '.04em', margin: '0 0 10px' }}>Parâmetros de produção</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label className="label">Umidade desejada (%)</label>
+              <input type="number" min={1} max={99} step={0.1} className="input"
+                value={umidadeDesejada === '' ? '' : umidadeDesejada}
+                onChange={e => setUmidadeDesejada(e.target.value === '' ? '' : parseFloat(e.target.value) || '')}
+                placeholder="Ex: 65" />
+            </div>
+            <div>
+              <label className="label">Peso por bloco (kg)</label>
+              <input type="number" min={0} step={0.1} className="input"
+                value={pesoBlocoKg === '' ? '' : pesoBlocoKg}
+                onChange={e => setPesoBlocoKg(e.target.value === '' ? '' : parseFloat(e.target.value) || '')}
+                placeholder="Ex: 1.2" />
+            </div>
+          </div>
+        </div>
+
+        {/* Resultado calculado */}
+        {(agua !== null || qtdBlocos !== null) && (
+          <div style={{ background: '#F7F6F3', borderRadius: 12, padding: '12px', marginBottom: 16 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: '#bbb', textTransform: 'uppercase', letterSpacing: '.04em', margin: '0 0 10px' }}>Resultado</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+              <div style={{ background: '#fff', borderRadius: 10, padding: '10px', textAlign: 'center', border: '0.5px solid #E8E8E8' }}>
+                <p style={{ fontSize: 11, color: '#888', margin: '0 0 4px' }}>Água a adicionar</p>
+                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#185FA5' }}>{agua !== null ? `${agua.toFixed(1)} L` : '—'}</p>
+              </div>
+              <div style={{ background: '#fff', borderRadius: 10, padding: '10px', textAlign: 'center', border: '0.5px solid #E8E8E8' }}>
+                <p style={{ fontSize: 11, color: '#888', margin: '0 0 4px' }}>Peso final</p>
+                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#111' }}>{pesoFinal !== null ? `${pesoFinal.toFixed(1)} kg` : '—'}</p>
+              </div>
+              <div style={{ background: '#fff', borderRadius: 10, padding: '10px', textAlign: 'center', border: '0.5px solid #E8E8E8' }}>
+                <p style={{ fontSize: 11, color: '#888', margin: '0 0 4px' }}>Qtd de blocos</p>
+                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#0F6E56' }}>{qtdBlocos !== null ? qtdBlocos : '—'}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {erro && <p style={{ fontSize: 13, color: 'var(--red)', marginBottom: 10 }}>{erro}</p>}
 
@@ -271,6 +357,8 @@ function Calculadora() {
   const [especieId, setEspecieId]     = useState('')
   const [nome, setNome]               = useState('')
   const [linhas, setLinhas]           = useState<Linha[]>([{ insumoId:'', pesoRealKg:0, umidadePct:40 }])
+  const [umidadeDesejada, setUmidadeDesejada] = useState<number | ''>('')
+  const [pesoBlocoKg, setPesoBlocoKg]         = useState<number | ''>('')
   const [salvando, setSalvando]       = useState(false)
   const [msg, setMsg]                 = useState('')
   const [msgOk, setMsgOk]             = useState(false)
@@ -285,21 +373,31 @@ function Calculadora() {
     try {
       const draft = localStorage.getItem(DRAFT_KEY)
       if (draft) {
-        const { nome:n, especieId:eid, linhas:l } = JSON.parse(draft)
+        const { nome:n, especieId:eid, linhas:l, umidadeDesejada:u, pesoBlocoKg:p } = JSON.parse(draft)
         if (n)    setNome(n)
         if (eid)  setEspecieId(eid)
         if (l?.length) setLinhas(l)
+        if (u)    setUmidadeDesejada(u)
+        if (p)    setPesoBlocoKg(p)
       }
     } catch { /* ignora */ }
   }, [])
 
   useEffect(() => {
-    try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ nome, especieId, linhas })) } catch { /* ignora */ }
-  }, [nome, especieId, linhas])
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ nome, especieId, linhas, umidadeDesejada, pesoBlocoKg })) } catch { /* ignora */ }
+  }, [nome, especieId, linhas, umidadeDesejada, pesoBlocoKg])
 
   const especie = especies.find(e => e.id === especieId)
-  const { cnTotal, phMedio, totalPeso, contribs, totalC } = calcular(linhas, insumos)
+  const { cnTotal, phMedio, totalPeso, contribs, totalC, totalPesoSeco, totalPesoUmido } = calcular(linhas, insumos)
   const contribsPct = contribs.map(({ id, nome, cKg }) => ({ id, nome, pct: totalC > 0 ? (cKg/totalC)*100 : 0 })).filter(c => c.pct > 0)
+
+  const agua = (umidadeDesejada !== '' && totalPesoSeco > 0)
+    ? calcularAgua(totalPesoSeco, totalPesoUmido, umidadeDesejada as number)
+    : null
+  const pesoFinal = agua !== null ? totalPeso + agua : null
+  const qtdBlocos = (pesoFinal !== null && pesoBlocoKg !== '' && (pesoBlocoKg as number) > 0)
+    ? Math.floor(pesoFinal / (pesoBlocoKg as number))
+    : null
 
   function setLinha(i: number, field: keyof Linha, value: string | number) {
     setLinhas(l => l.map((row, idx) => idx === i ? { ...row, [field]: value } : row))
@@ -309,6 +407,8 @@ function Calculadora() {
     setNome(f.nome + ' (cópia)')
     setEspecieId(f.especieId)
     setLinhas(f.insumos.map(fi => ({ insumoId: fi.insumoId, pesoRealKg: fi.pesoRealKg, umidadePct: Math.round(fi.umidadePct * 100) })))
+    setUmidadeDesejada(f.umidadeDesejada ?? '')
+    setPesoBlocoKg(f.pesoBlocoKg ?? '')
     setShowFormulacoes(false)
   }
 
@@ -318,13 +418,22 @@ function Calculadora() {
 
   async function salvar() {
     if (!especieId || !nome.trim()) { setMsg('Preencha nome e espécie.'); setMsgOk(false); return }
+    if (umidadeDesejada === '') { setMsg('Informe a umidade desejada.'); setMsgOk(false); return }
+    if (pesoBlocoKg === '') { setMsg('Informe o peso por bloco.'); setMsgOk(false); return }
     const validas = linhas.filter(l => l.insumoId && l.pesoRealKg > 0)
     if (!validas.length) { setMsg('Adicione pelo menos um insumo.'); setMsgOk(false); return }
     setSalvando(true); setMsg('')
     try {
-      await api.formulacoes.criar({ especieId, nome, insumos: validas.map(l => ({ ...l, umidadePct: l.umidadePct/100 })) })
+      await api.formulacoes.criar({
+        especieId, nome,
+        insumos: validas.map(l => ({ ...l, umidadePct: l.umidadePct/100 })),
+        umidadeDesejada: umidadeDesejada as number,
+        pesoBlocoKg: pesoBlocoKg as number,
+        totalBlocos: qtdBlocos,
+      })
       setMsg('Formulação salva!'); setMsgOk(true)
       setNome(''); setLinhas([{ insumoId:'', pesoRealKg:0, umidadePct:40 }])
+      setUmidadeDesejada(''); setPesoBlocoKg('')
       localStorage.removeItem(DRAFT_KEY)
       recarregarFormulacoes()
     } catch(e:any) { setMsg(e.message); setMsgOk(false) }
@@ -421,10 +530,54 @@ function Calculadora() {
           )
         })}
 
+        <button className="btn" style={{ marginBottom: 16 }} onClick={() => setLinhas(l => [...l, { insumoId:'', pesoRealKg:0, umidadePct:40 }])}>
+          + Adicionar insumo
+        </button>
+
+        {/* Parâmetros de produção */}
+        <div style={{ borderTop: '0.5px solid #F0F0F0', paddingTop: 14, marginBottom: 14 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: '#bbb', textTransform: 'uppercase', letterSpacing: '.04em', margin: '0 0 10px' }}>Parâmetros de produção</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label className="label">Umidade desejada (%)</label>
+              <input type="number" min={1} max={99} step={0.1} className="input"
+                value={umidadeDesejada === '' ? '' : umidadeDesejada}
+                onChange={e => setUmidadeDesejada(e.target.value === '' ? '' : parseFloat(e.target.value) || '')}
+                placeholder="Ex: 65" />
+            </div>
+            <div>
+              <label className="label">Peso por bloco (kg)</label>
+              <input type="number" min={0} step={0.1} className="input"
+                value={pesoBlocoKg === '' ? '' : pesoBlocoKg}
+                onChange={e => setPesoBlocoKg(e.target.value === '' ? '' : parseFloat(e.target.value) || '')}
+                placeholder="Ex: 1.2" />
+            </div>
+          </div>
+        </div>
+
+        {/* Resultado calculado */}
+        {(agua !== null || qtdBlocos !== null) && (
+          <div style={{ background: '#F7F6F3', borderRadius: 12, padding: '12px', marginBottom: 14 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: '#bbb', textTransform: 'uppercase', letterSpacing: '.04em', margin: '0 0 10px' }}>Resultado</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+              <div style={{ background: '#fff', borderRadius: 10, padding: '10px', textAlign: 'center', border: '0.5px solid #E8E8E8' }}>
+                <p style={{ fontSize: 11, color: '#888', margin: '0 0 4px' }}>Água a adicionar</p>
+                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#185FA5' }}>{agua !== null ? `${agua.toFixed(1)} L` : '—'}</p>
+              </div>
+              <div style={{ background: '#fff', borderRadius: 10, padding: '10px', textAlign: 'center', border: '0.5px solid #E8E8E8' }}>
+                <p style={{ fontSize: 11, color: '#888', margin: '0 0 4px' }}>Peso final</p>
+                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#111' }}>{pesoFinal !== null ? `${pesoFinal.toFixed(1)} kg` : '—'}</p>
+              </div>
+              <div style={{ background: '#fff', borderRadius: 10, padding: '10px', textAlign: 'center', border: '0.5px solid #E8E8E8' }}>
+                <p style={{ fontSize: 11, color: '#888', margin: '0 0 4px' }}>Qtd de blocos</p>
+                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#0F6E56' }}>{qtdBlocos !== null ? qtdBlocos : '—'}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div style={{ display:'flex', flexDirection:'column', gap:8 }} className="sm:flex-row sm:justify-between">
-          <button className="btn" onClick={() => setLinhas(l => [...l, { insumoId:'', pesoRealKg:0, umidadePct:40 }])}>
-            + Adicionar insumo
-          </button>
+          <div />
           <div style={{ display:'flex', flexDirection:'column', gap:8 }} className="sm:flex-row sm:items-center">
             {msg && <span style={{ fontSize:12, color: msgOk ? 'var(--teal)' : 'var(--red)' }}>{msg}</span>}
             <button className="btn-primary" onClick={salvar} disabled={salvando}>
@@ -456,7 +609,7 @@ function Calculadora() {
             <div className="table-wrap">
               <table className="tbl" style={{ minWidth:400 }}>
                 <thead>
-                  <tr><th>Nome</th><th>Espécie</th><th>C/N</th><th>Criado por</th><th></th></tr>
+                  <tr><th>Nome</th><th>Espécie</th><th>C/N</th><th>Blocos</th><th>Criado por</th><th></th></tr>
                 </thead>
                 <tbody>
                   {formulacoes.map(f => (
@@ -469,6 +622,7 @@ function Calculadora() {
                       </td>
                       <td style={{ color:'#888' }}>{f.especieNome}</td>
                       <td style={{ fontWeight:700, color: f.cnDentroFaixa ? 'var(--teal)' : 'var(--amber)' }}>{f.cnTotal?.toFixed(1) ?? '—'}</td>
+                      <td style={{ color:'#888' }}>{f.totalBlocos ?? '—'}</td>
                       <td style={{ color:'#bbb', fontSize:12 }}>{f.usuarioNome}</td>
                       <td style={{ textAlign:'right', whiteSpace:'nowrap' }}>
                         <button style={{ fontSize:12, color:'var(--purple)', background:'none', border:'none', cursor:'pointer', marginRight:8 }} onClick={() => duplicarFormulacao(f)}>duplicar</button>
@@ -502,6 +656,7 @@ function Calculadora() {
                   </button>
                   <span style={{ fontSize:12, color:'#888' }}>
                     {f.especieNome} · C/N <span style={{ fontWeight:700, color: f.cnDentroFaixa ? 'var(--teal)' : 'var(--amber)' }}>{f.cnTotal?.toFixed(1)??'—'}</span>
+                    {f.totalBlocos ? ` · ${f.totalBlocos} blocos` : ''}
                   </span>
                 </div>
                 <div style={{ display:'flex', gap:8, alignItems:'center' }}>

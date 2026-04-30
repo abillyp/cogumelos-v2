@@ -35,14 +35,26 @@ public class Formulacao extends TenantEntity{
     @JoinColumn(name = "usuario_id", nullable = false)
     private Usuario usuario;
 
-    @NotNull
+    @NotNull(message = "especie não pode ser nulo")
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "especie_id", nullable = false)
     private EspecieCogumelo especie;
 
-    @NotBlank
+    @NotBlank(message = "nome não pode ser vazio")
     @Column(nullable = false)
     private String nome;
+
+    @NotNull @DecimalMin("0.0") @DecimalMax("100")
+    @Column(nullable = false)
+    private Double umidade;
+
+    @NotNull @DecimalMin("0.1")
+    @Column(nullable = false)
+    private Double pesoBlocoKg;
+
+    @NotNull @DecimalMin("0.0")
+    @Column(nullable = false)
+    private Integer totalBlocos;
 
     @Column(name = "cn_total")
     private Double cnTotal;
@@ -75,6 +87,7 @@ public class Formulacao extends TenantEntity{
         }
         this.cnTotal = totalN > 0 ? totalC / totalN : null;
         this.phMedio = countPh > 0 ? somaPh / countPh : null;
+
     }
 
     public boolean cnDentroFaixa() {
