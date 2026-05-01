@@ -13,6 +13,7 @@ const mockLogin = vi.fn()
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn() }),
+  useSearchParams: () => ({ get: vi.fn().mockReturnValue(null) }),
 }))
 
 vi.mock('@/hooks/useAuth', () => ({
