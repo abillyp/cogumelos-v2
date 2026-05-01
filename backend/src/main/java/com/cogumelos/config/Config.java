@@ -48,6 +48,18 @@ class GlobalExceptionHandler {
             .body(Map.of("erro", msg != null ? msg : "Erro na requisição"));
     }
 
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<Map<String, String>> handleTooManyRequests(
+            org.springframework.web.server.ResponseStatusException ex) {
+        if (ex.getStatusCode().value() == 429) {
+            return ResponseEntity.status(429)
+                    .body(Map.of("erro", ex.getReason()));
+        }
+        String msg = ex.getReason() != null ? ex.getReason() : ex.getMessage();
+        return ResponseEntity.status(ex.getStatusCode())
+                .body(Map.of("erro", msg != null ? msg : "Erro na requisição"));
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> handleRuntime(RuntimeException ex) {
         String msg = ex.getMessage();

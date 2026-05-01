@@ -7,6 +7,7 @@ import com.cogumelos.enums.Role;
 import com.cogumelos.repository.*;
 import com.cogumelos.service.JwtService;
 import com.cogumelos.service.EmailService;
+import com.cogumelos.service.RateLimitService;
 import com.cogumelos.service.TenantService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -14,14 +15,17 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -42,6 +46,7 @@ public class AuthController {
     private final TenantService tenantService;
     private final PasswordResetTokenRepository passwordResetRepo;
     private final EmailService emailService;
+    private final RateLimitService rateLimitService;
 
     @Value("${jwt.refresh-expiration-days:30}")
     private int refreshDays;
@@ -51,7 +56,7 @@ public class AuthController {
                           RefreshTokenRepository refreshRepo,
                           BCryptPasswordEncoder encoder,
                           JwtService jwtService,
-                          TenantService tenantService, PasswordResetTokenRepository passwordResetRepo, EmailService emailService) {
+                          TenantService tenantService, PasswordResetTokenRepository passwordResetRepo, EmailService emailService, RateLimitService rateLimitService) {
         this.usuarioRepo   = usuarioRepo;
         this.tenantRepo    = tenantRepo;
         this.refreshRepo   = refreshRepo;
@@ -60,6 +65,7 @@ public class AuthController {
         this.tenantService = tenantService;
         this.passwordResetRepo = passwordResetRepo;
         this.emailService = emailService;
+        this.rateLimitService = rateLimitService;
     }
 
     @Operation(summary = "Login com email e senha",
@@ -71,7 +77,14 @@ public class AuthController {
     })
     @PostMapping("/login")
     @Transactional
-    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req) {
+    public ResponseEntity<?> registro(@Valid @RequestBody RegistroRequest req,
+                                      HttpServletRequest request) {
+        String ip = request.getRemoteAddr();
+        if (!rateLimitService.tentativaPermitida(ip)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Muitas tentativas. Aguarde 1 minuto e tente novamente.");
+        }
+
         Usuario u = usuarioRepo.findByEmail(req.email())
                 .orElseThrow(() -> new RuntimeException("Email ou senha inválidos"));
         if (!u.isAtivo()) throw new RuntimeException("Usuário inativo. Contate o administrador.");
