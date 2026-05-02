@@ -45,20 +45,9 @@ class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleResponseStatus(ResponseStatusException ex) {
         String msg = ex.getReason() != null ? ex.getReason() : ex.getMessage();
         return ResponseEntity.status(ex.getStatusCode())
-            .body(Map.of("erro", msg != null ? msg : "Erro na requisição"));
-    }
-
-    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
-    public ResponseEntity<Map<String, String>> handleTooManyRequests(
-            org.springframework.web.server.ResponseStatusException ex) {
-        if (ex.getStatusCode().value() == 429) {
-            return ResponseEntity.status(429)
-                    .body(Map.of("erro", ex.getReason()));
-        }
-        String msg = ex.getReason() != null ? ex.getReason() : ex.getMessage();
-        return ResponseEntity.status(ex.getStatusCode())
                 .body(Map.of("erro", msg != null ? msg : "Erro na requisição"));
     }
+
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> handleRuntime(RuntimeException ex) {
@@ -95,7 +84,9 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleGeneric(Exception ex) {
-        log.error("Erro interno: {}", ex.getMessage(), ex);
+        log.error("Erro interno: {}", ex.getMessage(), ex);  // já tem isso
+        // adiciona print do stack trace completo
+        ex.printStackTrace();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("erro", "Erro interno. Tente novamente."));
     }

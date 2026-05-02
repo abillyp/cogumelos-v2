@@ -14,16 +14,34 @@ package com.cogumelos.domain;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.springframework.data.domain.Persistable;
 
 @Entity
 @Table(name = "formulacao_insumos")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
-public class FormulacaoInsumo extends TenantEntity{
+public class FormulacaoInsumo extends TenantEntity implements Persistable<String> {
 
     @Id
     private String id;
+
+    @Transient
+    private boolean isNew = true;
+
+    @Override
+    public boolean isNew() {
+        return isNew;
+    }
+
+    @PostLoad
+    @PostPersist
+    void markNotNew() {
+        this.isNew = false;
+    }
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "formulacao_id", nullable = false)
@@ -63,8 +81,8 @@ public class FormulacaoInsumo extends TenantEntity{
         this.msPct = 1.0 - umidadePct;
         if (insumo != null) {
             this.moKg = pesoSecoKg * insumo.getMoPct();
-            this.cKg  = pesoSecoKg * insumo.getCarbonoPct();
-            this.nKg  = pesoSecoKg * insumo.getNitrogenioPct();
+            this.cKg  = this.moKg * insumo.getCarbonoPct();
+            this.nKg  = this.moKg * insumo.getNitrogenioPct();
         }
     }
 

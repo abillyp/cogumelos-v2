@@ -15,7 +15,10 @@ import com.cogumelos.enums.StatusFormulacao;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.springframework.data.domain.Persistable;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -23,12 +26,27 @@ import java.util.List;
 
 @Entity
 @Table(name = "formulacoes")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
-public class Formulacao extends TenantEntity{
+public class Formulacao extends TenantEntity implements Persistable<String> {
 
     @Id
     private String id;
+
+    @Transient
+    private boolean isNew = true;
+
+    @Override
+    public boolean isNew() {
+        return isNew;
+    }
+
+    @PostLoad
+    @PostPersist
+    void markNotNew() {
+        this.isNew = false;
+    }
 
     @NotNull
     @ManyToOne(optional = false, fetch = FetchType.LAZY)

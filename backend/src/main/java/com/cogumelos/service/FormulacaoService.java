@@ -16,6 +16,7 @@ import com.cogumelos.dto.Dtos.*;
 import com.cogumelos.enums.StatusFormulacao;
 import com.cogumelos.repository.*;
 import com.cogumelos.security.TenantContext;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,24 +25,28 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class FormulacaoService {
+
 
     private final FormulacaoRepository repo;
     private final EspecieCogumeloRepository especieRepo;
     private final InsumoRepository insumoRepo;
     private final UsuarioRepository usuarioRepo;
     private final ExperimentoRepository experimentoRepository;
+    private final jakarta.persistence.EntityManager em;
 
     public FormulacaoService(FormulacaoRepository repo,
                              EspecieCogumeloRepository especieRepo,
                              InsumoRepository insumoRepo,
-                             UsuarioRepository usuarioRepo, ExperimentoRepository experimentoRepository) {
+                             UsuarioRepository usuarioRepo, ExperimentoRepository experimentoRepository, jakarta.persistence.EntityManager em) {
         this.repo        = repo;
         this.especieRepo = especieRepo;
         this.insumoRepo  = insumoRepo;
         this.usuarioRepo = usuarioRepo;
         this.experimentoRepository = experimentoRepository;
+        this.em = em;
     }
 
     private Long tenantId() {
@@ -85,6 +90,7 @@ public class FormulacaoService {
         f.setEspecie(especie);
         f.setUmidade(req.umidadeDesejada());
         f.setPesoBlocoKg(req.pesoBlocoKg());
+        f.setTotalBlocos(req.totalBlocos());
 
 
         for (FormulacaoInsumoItem item : req.insumos()) {
@@ -103,7 +109,9 @@ public class FormulacaoService {
         }
 
         f.recalcular();
-        return FormulacaoResponse.from(repo.save(f));
+        em.persist(f);
+        em.flush();
+        return FormulacaoResponse.from(f);
     }
 
     @Transactional

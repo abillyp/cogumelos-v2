@@ -15,13 +15,12 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.util.List;
 
 @Entity
 @Table(name = "especies_cogumelo")
 @Data
 @NoArgsConstructor
-public class EspecieCogumelo {  // ✅ sem TenantEntity — catálogo global
+public class EspecieCogumelo {
 
     @Id
     private String id;
@@ -40,9 +39,6 @@ public class EspecieCogumelo {  // ✅ sem TenantEntity — catálogo global
 
     @Column(length = 1000)
     private String notas;
-
-    @OneToMany(mappedBy = "especie", fetch = FetchType.LAZY)
-    private List<Formulacao> formulacoes;
 
     public boolean cnDentroFaixa(double cn) {
         return cn >= cnMin && cn <= cnMax;
