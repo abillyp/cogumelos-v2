@@ -24,8 +24,9 @@ function calcular(linhas: Linha[], insumos: Insumo[]) {
     if (!ins || !l.pesoRealKg) { contribs.push({ id: l.insumoId, nome: '—', cKg: 0 }); continue }
     const ps  = l.pesoRealKg * (1 - l.umidadePct / 100)
     const pu  = l.pesoRealKg - ps
-    const cKg = ps * ins.carbonoPct
-    const nKg = ps * ins.nitrogenioPct
+    const mo  = ps * ins.moPct
+    const cKg = mo * ins.carbonoPct
+    const nKg = mo * ins.nitrogenioPct
     totalC    += cKg; totalN += nKg; totalPeso += l.pesoRealKg
     totalPesoSeco  += ps
     totalPesoUmido += pu
@@ -39,9 +40,9 @@ function calcular(linhas: Linha[], insumos: Insumo[]) {
   }
 }
 
-function calcularAgua(totalPesoSeco: number, totalPesoUmido: number, umidadeDesejada: number): number | null {
+function calcularAgua(totalPesoSeco: number, totalPeso: number, umidadeDesejada: number): number | null {
   if (umidadeDesejada <= 0 || umidadeDesejada >= 100) return null
-  const agua = (100 * totalPesoSeco + totalPesoUmido * (umidadeDesejada - 100)) / (100 - umidadeDesejada)
+  const agua = (100 * totalPesoSeco + totalPeso * (umidadeDesejada - 100)) / (100 - umidadeDesejada)
   return agua < 0 ? 0 : agua
 }
 
@@ -142,7 +143,7 @@ function ModalEdicao({ formulacao, insumos, especies, onFechar, onSalva }: {
   const { cnTotal, totalPeso, totalPesoSeco, totalPesoUmido } = calcular(linhas, insumos)
 
   const agua = (umidadeDesejada !== '' && totalPesoSeco > 0)
-    ? calcularAgua(totalPesoSeco, totalPesoUmido, umidadeDesejada as number)
+    ? calcularAgua(totalPesoSeco, totalPeso, umidadeDesejada as number)
     : null
   const pesoFinal = agua !== null ? totalPeso + agua : null
   const qtdBlocos = (pesoFinal !== null && pesoBlocoKg !== '' && (pesoBlocoKg as number) > 0)
@@ -391,8 +392,8 @@ function Calculadora() {
   const { cnTotal, phMedio, totalPeso, contribs, totalC, totalPesoSeco, totalPesoUmido } = calcular(linhas, insumos)
   const contribsPct = contribs.map(({ id, nome, cKg }) => ({ id, nome, pct: totalC > 0 ? (cKg/totalC)*100 : 0 })).filter(c => c.pct > 0)
 
-  const agua = (umidadeDesejada !== '' && totalPesoSeco > 0)
-    ? calcularAgua(totalPesoSeco, totalPesoUmido, umidadeDesejada as number)
+  const agua = (umidadeDesejada !== '' && totalPeso > 0)
+    ? calcularAgua(totalPesoSeco, totalPeso, umidadeDesejada as number)
     : null
   const pesoFinal = agua !== null ? totalPeso + agua : null
   const qtdBlocos = (pesoFinal !== null && pesoBlocoKg !== '' && (pesoBlocoKg as number) > 0)
@@ -508,7 +509,7 @@ function Calculadora() {
                       onChange={e => setLinha(i, 'umidadePct', e.target.value === '' ? 0 : parseFloat(e.target.value) || 0)} />
                   </div>
                 </div>
-                {ins && <p style={{ fontSize:11, color:'#888', marginTop:4 }}>C: {(ps*ins.carbonoPct).toFixed(2)} kg · N: {(ps*ins.nitrogenioPct).toFixed(4)} kg</p>}
+                {ins && <p style={{ fontSize:11, color:'#888', marginTop:4 }}>C: {(ps*ins.moPct*ins.carbonoPct).toFixed(2)} kg · N: {(ps*ins.moPct*ins.nitrogenioPct).toFixed(4)} kg</p>}
               </div>
               <div className="hidden sm:grid" style={{ gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr 32px', gap:8, alignItems:'center' }}>
                 <select className="input text-xs" value={l.insumoId} onChange={e => setLinha(i,'insumoId',e.target.value)}>
@@ -521,8 +522,8 @@ function Calculadora() {
                 <input type="number" min={0} max={100} className="input text-xs"
                   value={l.umidadePct === 0 ? '' : l.umidadePct}
                   onChange={e => setLinha(i,'umidadePct', e.target.value === '' ? 0 : parseFloat(e.target.value)||0)} />
-                <span style={{ fontSize:13, color:'#888' }}>{ins ? (ps*ins.carbonoPct).toFixed(2) : '—'}</span>
-                <span style={{ fontSize:13, color:'#888' }}>{ins ? (ps*ins.nitrogenioPct).toFixed(4) : '—'}</span>
+                <span style={{ fontSize:13, color:'#888' }}>{ins ? (ps*ins.moPct*ins.carbonoPct).toFixed(2) : '—'}</span>
+                <span style={{ fontSize:13, color:'#888' }}>{ins ? (ps*ins.moPct*ins.nitrogenioPct).toFixed(4) : '—'}</span>
                 <button onClick={() => setLinhas(l => l.filter((_,idx) => idx !== i))}
                   style={{ color:'#ddd', fontSize:20, background:'none', border:'none', cursor:'pointer' }}>×</button>
               </div>
