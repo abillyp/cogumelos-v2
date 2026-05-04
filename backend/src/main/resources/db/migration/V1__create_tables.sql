@@ -94,7 +94,6 @@ CREATE TABLE experimentos (
     total_blocos          INTEGER          NOT NULL,
     peso_bloco_kg         DOUBLE PRECISION,
     preco_venda_kg        DOUBLE PRECISION,
-    status                VARCHAR(50)      NOT NULL DEFAULT 'PREPARACAO',
     tenant_id             BIGINT           NOT NULL,
     CONSTRAINT uq_experimento_codigo_tenant UNIQUE (codigo, tenant_id)
 );

@@ -13,7 +13,7 @@ package com.cogumelos.service;
 
 import com.cogumelos.domain.*;
 import com.cogumelos.dto.Dtos.*;
-import com.cogumelos.enums.StatusSala;
+import com.cogumelos.enums.Fase;
 import com.cogumelos.repository.*;
 import com.cogumelos.security.TenantContext;
 import org.junit.jupiter.api.*;
@@ -67,7 +67,7 @@ class ExperimentoServiceTest {
         Experimento e = new Experimento();
         e.setId(id);
         e.setTenantId(tenantId);
-        e.setStatus(StatusSala.PREPARACAO);
+        e.setFaseAtual(Fase.PREPARACAO);
         e.setTotalBlocos(10);
         e.setUsuario(u);
         e.setFormulacao(f);

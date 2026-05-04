@@ -11,7 +11,7 @@
 
 package com.cogumelos.domain;
 
-import com.cogumelos.enums.StatusSala;
+import com.cogumelos.enums.Fase;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.Data;
@@ -25,10 +25,20 @@ import java.util.List;
 @Table(name = "experimentos")
 @NoArgsConstructor
 @Data
-public class Experimento extends TenantEntity {
+public class Experimento extends TenantEntity implements org.springframework.data.domain.Persistable<String> {
 
     @Id
     private String id;
+
+    @Transient
+    private boolean novo = true;
+
+    @Override
+    public boolean isNew() { return novo; }
+
+    @PostLoad
+    @PostPersist
+    void markNotNew() { this.novo = false; }
 
     @NotNull
     @ManyToOne(optional = false, fetch = FetchType.LAZY) // LAZY aqui
@@ -48,21 +58,6 @@ public class Experimento extends TenantEntity {
     @Column(name = "data_preparo", nullable = false)
     private LocalDate dataPreparo;
 
-    @Column(name = "data_inoculacao")
-    private LocalDate dataInoculacao;
-
-    @Column(name = "amadurecimento_inicio")
-    private LocalDate amadurecimentoInicio;
-
-    @Column(name = "amadurecimento_fim")
-    private LocalDate amadurecimentoFim;
-
-    @Column(name = "frutificacao_inicio")
-    private LocalDate frutificacaoInicio;
-
-    @Column(name = "frutificacao_fim")
-    private LocalDate frutificacaoFim;
-
     @NotNull @Positive
     @Column(name = "total_blocos", nullable = false)
     private Integer totalBlocos;
@@ -77,20 +72,26 @@ public class Experimento extends TenantEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private StatusSala status = StatusSala.PREPARACAO;
+    private Fase faseAtual = Fase.PREPARACAO;
 
     @OneToMany(mappedBy = "experimento", cascade = CascadeType.ALL,
-            orphanRemoval = true, fetch = FetchType.LAZY) // LAZY aqui
+            orphanRemoval = true, fetch = FetchType.LAZY)
     private List<LoteMonitoramento> monitoramentos = new ArrayList<>();
 
     @OneToMany(mappedBy = "experimento", cascade = CascadeType.ALL,
-            orphanRemoval = true, fetch = FetchType.LAZY) // LAZY aqui
+            orphanRemoval = true, fetch = FetchType.LAZY)
     private List<Colheita> colheitas = new ArrayList<>();
 
     @OneToMany(mappedBy = "experimento", cascade = CascadeType.ALL,
-            orphanRemoval = true, fetch = FetchType.LAZY) // LAZY aqui
+            orphanRemoval = true, fetch = FetchType.LAZY)
     private List<ExperimentoCusto> custos = new ArrayList<>();
 
+    @OneToMany(mappedBy = "experimento", cascade = CascadeType.ALL,
+            orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<ExperimentoFase> fases = new ArrayList<>();
+
+    @Column(name = "total_blocos_perdidos")
+    private Integer totalBlocosPerdidos;
 
     public void setCustos(List<ExperimentoCusto> custos) {
         this.custos.clear();

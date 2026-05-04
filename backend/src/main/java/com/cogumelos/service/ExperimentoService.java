@@ -14,9 +14,10 @@ package com.cogumelos.service;
 import com.cogumelos.domain.*;
 import com.cogumelos.dto.Dtos.*;
 import com.cogumelos.enums.Sala;
-import com.cogumelos.enums.StatusSala;
+import com.cogumelos.enums.Fase;
 import com.cogumelos.repository.*;
 import com.cogumelos.security.TenantContext;
+import jakarta.persistence.EntityManager;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,30 +27,36 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
 public class ExperimentoService {
 
+    private static final Integer PRIMEIRO = 1;
     private final ExperimentoRepository repo;
+    private final ExperimentoFaseRepository faseRepo;
     private final FormulacaoRepository formulacaoRepo;
     private final UsuarioRepository usuarioRepo;
     private final LoteMonitoramentoRepository monitoramentoRepo;
     private final ColheitaRepository colheitaRepo;
     private final InsumoRepository insumoRepo;
+    private final EntityManager em;
 
-    public ExperimentoService(ExperimentoRepository repo,
+    public ExperimentoService(ExperimentoRepository repo, ExperimentoFaseRepository faseRepo,
                               FormulacaoRepository formulacaoRepo,
                               UsuarioRepository usuarioRepo,
                               LoteMonitoramentoRepository monitoramentoRepo,
                               ColheitaRepository colheitaRepo,
-                              InsumoRepository insumoRepo) {
+                              InsumoRepository insumoRepo, EntityManager em) {
         this.repo              = repo;
+        this.faseRepo = faseRepo;
         this.formulacaoRepo    = formulacaoRepo;
         this.usuarioRepo       = usuarioRepo;
         this.monitoramentoRepo = monitoramentoRepo;
         this.colheitaRepo      = colheitaRepo;
         this.insumoRepo        = insumoRepo;
+        this.em = em;
     }
 
     // ✅ helper central — evita repetir TenantContext.getTenantId() em todo lugar
@@ -112,27 +119,77 @@ public class ExperimentoService {
         e.setCodigo(req.codigo());
         e.setDataPreparo(req.dataPreparo());
         e.setTotalBlocos(req.totalBlocos());
+        e.setTotalBlocosPerdidos(0);
         e.setPesoBlocoKg(req.pesoBlocoKg());
+        em.persist(e);
+        em.flush();
+
+        ExperimentoFase fase = new ExperimentoFase();
+        fase.setInicio(LocalDate.now());
+        fase.setExperimento(e);
+        fase.setCiclo(PRIMEIRO);
+        faseRepo.save(fase);
+
+
+        return ExperimentoResponse.from(e, calcularFinanceiro(e));
+    }
+
+    @Transactional
+    public ExperimentoResponse avancarStatus(String id, Fase proximaFase) {
+        Experimento e = buscarSeguro(id);
+        LocalDate hoje = LocalDate.now();
+
+        Optional<ExperimentoFase> faseOptional = faseRepo.findFaseComMaiorCiclo(e, e.getFaseAtual());
+        if (faseOptional.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Erro ao recuperar a fase atual");
+        }
+        ExperimentoFase faseAtual = faseOptional.get();
+        calcularProximaFase(proximaFase, faseAtual, e);
 
         return ExperimentoResponse.from(repo.save(e), calcularFinanceiro(e));
     }
 
-    @Transactional
-    public ExperimentoResponse avancarStatus(String id) {
-        Experimento e = buscarSeguro(id);
-        LocalDate hoje = LocalDate.now();
+    private void calcularProximaFase(Fase proximaFase, ExperimentoFase faseAtual, Experimento e) {
 
-        switch (e.getStatus()) {
-            case PREPARACAO     -> { e.setDataInoculacao(hoje);       e.setStatus(StatusSala.INOCULADO); }
-            case INOCULADO      -> { e.setAmadurecimentoInicio(hoje); e.setStatus(StatusSala.AMADURECIMENTO); }
-            case AMADURECIMENTO -> { e.setAmadurecimentoFim(hoje);
-                e.setFrutificacaoInicio(hoje);   e.setStatus(StatusSala.FRUTIFICACAO); }
-            case FRUTIFICACAO   -> { e.setFrutificacaoFim(hoje);      e.setStatus(StatusSala.CONCLUIDO); }
+        faseAtual.setFim(LocalDate.now());
+        faseRepo.save(faseAtual);
+
+        ExperimentoFase faseNova = new ExperimentoFase();
+        faseNova.setInicio(LocalDate.now());
+        faseNova.setExperimento(e);
+        Fase fase = Fase.CONCLUIDO;
+        Integer ciclo = faseAtual.getCiclo();
+
+        switch (e.getFaseAtual()) {
+            case PREPARACAO     -> {
+                fase = Fase.INOCULADO;
+            }
+            case INOCULADO      -> {
+                fase = Fase.AMADURECIMENTO;
+            }
+            case AMADURECIMENTO -> {
+                fase = Fase.FRUTIFICACAO;
+            }
+            case FRUTIFICACAO   -> {
+                if (proximaFase == Fase.DESCANSO) {
+                    fase = Fase.DESCANSO;
+                    ciclo++;
+                }
+            }
+            case DESCANSO   -> {
+                if (proximaFase == Fase.FRUTIFICACAO) {
+                    fase = Fase.FRUTIFICACAO;
+                    ciclo++;
+                }
+            }
             default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Experimento já concluído.");
         }
-
-        return ExperimentoResponse.from(repo.save(e), calcularFinanceiro(e));
+        faseNova.setCiclo(ciclo);
+        faseNova.setFase(fase);
+        e.setFaseAtual(fase);
+        faseRepo.save(faseNova);
     }
 
     @Transactional
@@ -148,6 +205,11 @@ public class ExperimentoService {
         m.setTemperatura(req.temperatura());
         m.setUmidade(req.umidade());
         m.setObservacao(req.observacao());
+        m.setBlocosPerdidos(req.blocosPerdidos());
+
+        e.setTotalBlocosPerdidos(e.getTotalBlocosPerdidos()+ req.blocosPerdidos());
+        repo.save(e);
+
 
         return MonitoramentoResponse.from(monitoramentoRepo.save(m));
     }
@@ -219,7 +281,7 @@ public class ExperimentoService {
 
         int total        = experimentos.size();
         long concluidos  = experimentos.stream()
-                .filter(e -> e.getStatus() == StatusSala.CONCLUIDO).count();
+                .filter(e -> e.getFaseAtual() == Fase.CONCLUIDO).count();
         long emAndamento = total - concluidos;
 
         // busca todas as colheitas do tenant agrupadas por experimento — evita N queries

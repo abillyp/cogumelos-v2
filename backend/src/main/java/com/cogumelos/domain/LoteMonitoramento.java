@@ -51,5 +51,7 @@ public class LoteMonitoramento extends TenantEntity{
     @Column(length = 500)
     private String observacao;
 
+    @Column(name = "blocos_perdidos")
+    private Integer blocosPerdidos;
 
 }
