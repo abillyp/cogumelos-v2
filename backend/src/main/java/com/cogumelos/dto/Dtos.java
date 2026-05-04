@@ -243,4 +243,10 @@ public class Dtos {
             Double margemMediaPct,
             List<ExperimentoResponse> detalhes
     ) {}
+
+    public record ExperimentoAssociacaoResponse(
+            int monitoramentos,
+            int colheitas,
+            int custos
+    ){}
 }

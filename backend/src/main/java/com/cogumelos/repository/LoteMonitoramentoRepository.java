@@ -26,4 +26,6 @@ public interface LoteMonitoramentoRepository extends JpaRepository<LoteMonitoram
 
     Optional<LoteMonitoramento> findByIdAndTenantId(String id, Long tenantId);
 
+    int countByExperimentoIdAndTenantId(String experimentoId, Long tenantId);
+
 }

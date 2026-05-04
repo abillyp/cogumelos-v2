@@ -29,4 +29,6 @@ public interface ExperimentoCustoRepository extends JpaRepository<ExperimentoCus
     @Query("DELETE FROM ExperimentoCusto e WHERE e.experimento.id = :experimentoId AND e.tenantId = :tenantId")
     void deleteByExperimentoIdAndTenantId(@Param("experimentoId") String experimentoId,
                                           @Param("tenantId") Long tenantId);
+
+    int countByExperimentoIdAndTenantId(String experimentoId, Long tenantId);
 }

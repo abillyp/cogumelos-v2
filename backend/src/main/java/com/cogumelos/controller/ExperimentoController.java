@@ -1,5 +1,6 @@
 package com.cogumelos.controller;
 
+import com.cogumelos.domain.Usuario;
 import com.cogumelos.dto.Dtos.*;
 import com.cogumelos.enums.Fase;
 import com.cogumelos.service.ExperimentoService;
@@ -10,7 +11,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -125,5 +128,23 @@ public class ExperimentoController {
             @Parameter(description = "ID do experimento") @PathVariable String id,
             @Valid @RequestBody ColheitaRequest req) {
         return ResponseEntity.status(201).body(service.adicionarColheita(id, req));
+    }
+
+    @Operation(summary = "Deletar experimento")
+    @ApiResponse(responseCode = "204", description = "Experimento deletado")
+    @Transactional
+    @PreAuthorize("hasAnyRole('ADMIN', 'ADMIN_TENANT')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ExperimentoResponse> deleteExperimento(@Parameter(description = "ID do experimento")  @PathVariable String id,
+                                                                 Authentication auth) {
+        String userId = (String) auth.getPrincipal();
+        service.deletar(id, userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Consultar associaçoes a experimento")
+    @GetMapping("{id}/resumo-delete")
+    public ExperimentoAssociacaoResponse consultarAssociaao(@Parameter(description = "ID do experimento")  @PathVariable String id) {
+        return service.consultarAssociacao(id);
     }
 }

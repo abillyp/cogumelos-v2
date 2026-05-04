@@ -151,6 +151,8 @@ export const api = {
     criar:          (body: unknown)  => req('/experimentos', { method: 'POST', body: JSON.stringify(body) }),
     avancar: (id: string, body?: { proximoStatus: string }) =>
       req(`/experimentos/${id}/avancar`, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
+      deletar: (id: string) => req(`/experimentos/${id}`, { method: 'DELETE' }),
+      resumoDelete: (id: string) => req(`/experimentos/${id}/resumo-delete`),
     monitoramentos: {
       listar: (id: string)                => req(`/experimentos/${id}/monitoramentos`),
       criar:  (id: string, body: unknown) => req(`/experimentos/${id}/monitoramentos`, { method: 'POST', body: JSON.stringify(body) }),

@@ -13,6 +13,7 @@ package com.cogumelos.service;
 
 import com.cogumelos.domain.*;
 import com.cogumelos.dto.Dtos.*;
+import com.cogumelos.enums.Role;
 import com.cogumelos.enums.Sala;
 import com.cogumelos.enums.Fase;
 import com.cogumelos.repository.*;
@@ -36,6 +37,7 @@ public class ExperimentoService {
     private static final Integer PRIMEIRO = 1;
     private final ExperimentoRepository repo;
     private final ExperimentoFaseRepository faseRepo;
+    private final ExperimentoCustoRepository custoRepo;
     private final FormulacaoRepository formulacaoRepo;
     private final UsuarioRepository usuarioRepo;
     private final LoteMonitoramentoRepository monitoramentoRepo;
@@ -43,7 +45,7 @@ public class ExperimentoService {
     private final InsumoRepository insumoRepo;
     private final EntityManager em;
 
-    public ExperimentoService(ExperimentoRepository repo, ExperimentoFaseRepository faseRepo,
+    public ExperimentoService(ExperimentoRepository repo, ExperimentoFaseRepository faseRepo, ExperimentoCustoRepository custoRepo,
                               FormulacaoRepository formulacaoRepo,
                               UsuarioRepository usuarioRepo,
                               LoteMonitoramentoRepository monitoramentoRepo,
@@ -51,6 +53,7 @@ public class ExperimentoService {
                               InsumoRepository insumoRepo, EntityManager em) {
         this.repo              = repo;
         this.faseRepo = faseRepo;
+        this.custoRepo = custoRepo;
         this.formulacaoRepo    = formulacaoRepo;
         this.usuarioRepo       = usuarioRepo;
         this.monitoramentoRepo = monitoramentoRepo;
@@ -349,5 +352,31 @@ public class ExperimentoService {
 
         return new FinanceiroResponse(custoTotalSubstrato, custoPorBloco,
                 custoPorKgProduzido, totalColhidoKg, receitaTotal, margemReais, margemPct);
+    }
+
+    public void deletar(String id, String userId) {
+
+        Usuario u = usuarioRepo.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado"));
+
+        if (u.getRole() != Role.ADMIN && u.getRole() != Role.ADMIN_TENANT) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Sem permissão para deletar experimentos.");
+        }
+        repo.deleteById(id);
+    }
+
+    public ExperimentoAssociacaoResponse consultarAssociacao(String id){
+        Optional<Experimento> experimentoOptional = repo.findById(id);
+        if (experimentoOptional.isEmpty()){
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Experimento não encontrado!.");
+        }
+        Experimento experimento = experimentoOptional.get();
+
+        int monitoramentos = monitoramentoRepo.countByExperimentoIdAndTenantId(id, experimento.getTenantId());
+        int colheitas = colheitaRepo.countByExperimentoIdAndTenantId(id, experimento.getTenantId());
+        int custos = custoRepo.countByExperimentoIdAndTenantId(id, experimento.getTenantId());
+
+        return new ExperimentoAssociacaoResponse(monitoramentos, colheitas, custos);
     }
 }

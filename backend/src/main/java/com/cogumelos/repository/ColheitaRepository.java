@@ -26,4 +26,6 @@ public interface ColheitaRepository extends JpaRepository<Colheita, String> {
 
     // ✅ busca por id garantindo isolamento
     Optional<Colheita> findByIdAndTenantId(String id, Long tenantId);
+
+    int countByExperimentoIdAndTenantId(String experimentoId, Long tenantId);
 }

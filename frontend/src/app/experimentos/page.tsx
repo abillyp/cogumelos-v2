@@ -162,6 +162,95 @@ function ModalAvancarFase({ exp, onConfirmar, onFechar }: { exp: Experimento; on
   )
 }
 
+// ─── Modal deletar experimento ───────────────────────────────────────────────
+interface ResumoDelete { monitoramentos: number; colheitas: number; custos: number }
+
+function ModalDeletarExperimento({ exp, onConfirmar, onFechar }: {
+  exp: Experimento
+  onConfirmar: () => void
+  onFechar: () => void
+}) {
+  const [codigoDigitado, setCodigoDigitado] = useState('')
+  const [resumo, setResumo] = useState<ResumoDelete | null>(null)
+  const [carregando, setCarregando] = useState(true)
+  const [deletando, setDeletando] = useState(false)
+  const confirmado = codigoDigitado === exp.codigo
+
+  useEffect(() => {
+    api.experimentos.resumoDelete(exp.id)
+      .then((d: any) => setResumo(d))
+      .finally(() => setCarregando(false))
+  }, [exp.id])
+
+  async function handleDeletar() {
+    if (!confirmado) return
+    setDeletando(true)
+    try {
+      await onConfirmar()
+    } finally {
+      setDeletando(false)
+    }
+  }
+
+  return (
+    <div onClick={onFechar} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: 20, width: '100%', maxWidth: 420 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <p style={{ fontSize: 16, fontWeight: 700, color: '#791F1F', margin: 0 }}>Deletar experimento</p>
+          <button onClick={onFechar} style={{ background: '#F0F0F0', border: 'none', width: 32, height: 32, borderRadius: '50%', fontSize: 16, color: '#555', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+        </div>
+
+        <div style={{ background: '#FCEBEB', border: '0.5px solid #F09595', borderRadius: 10, padding: 12, marginBottom: 16 }}>
+          <p style={{ fontSize: 13, fontWeight: 500, color: '#791F1F', margin: '0 0 6px' }}>⚠️ Esta ação é irreversível</p>
+          <p style={{ fontSize: 12, color: '#A32D2D', margin: 0 }}>Todos os dados relacionados serão permanentemente deletados:</p>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+          {carregando ? (
+            <p style={{ fontSize: 13, color: '#888', textAlign: 'center', padding: '12px 0' }}>Carregando...</p>
+          ) : resumo ? (
+            [
+              { label: 'Monitoramentos', value: resumo.monitoramentos },
+              { label: 'Colheitas',      value: resumo.colheitas },
+              { label: 'Custos',         value: resumo.custos },
+            ].map(({ label, value }) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', background: '#F7F6F3', borderRadius: 8 }}>
+                <span style={{ fontSize: 13, color: '#333' }}>{label}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: value > 0 ? '#791F1F' : '#bbb' }}>{value} {value === 1 ? 'registro' : 'registros'}</span>
+              </div>
+            ))
+          ) : null}
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 6 }}>
+            Digite <strong style={{ color: '#111' }}>{exp.codigo}</strong> para confirmar
+          </label>
+          <input
+            type="text"
+            placeholder={exp.codigo}
+            value={codigoDigitado}
+            onChange={e => setCodigoDigitado(e.target.value)}
+            style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: `1.5px solid ${confirmado ? '#5DCAA5' : '#F09595'}`, borderRadius: 8, fontSize: 14, outline: 'none' }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={onFechar} style={{ flex: 1, background: 'none', border: '0.5px solid #E0E0E0', borderRadius: 8, padding: '10px', fontSize: 13, color: '#555', cursor: 'pointer' }}>
+            Cancelar
+          </button>
+          <button
+            onClick={handleDeletar}
+            disabled={!confirmado || deletando}
+            style={{ flex: 2, background: confirmado ? '#A32D2D' : '#F09595', color: '#fff', border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 500, cursor: confirmado ? 'pointer' : 'not-allowed', transition: 'background .2s' }}>
+            {deletando ? 'Deletando...' : 'Deletar permanentemente'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── ExpCard ──────────────────────────────────────────────────────────────────
 function ExpCard({ e, onAbrir }: { e: Experimento; onAbrir: (e: Experimento) => void }) {
   const st = STATUS_STYLE[e.status] ?? STATUS_STYLE.PREPARACAO
@@ -201,6 +290,8 @@ interface DetalheProps {
   setVerTodosMonitor: (v: boolean) => void
   isAdmin: boolean
   onAvancar: () => void
+  onDeletar: () => void
+  podeAdmin: boolean
   onSalvarMon: (data: any) => Promise<void>
   onSalvarColheita: (data: any) => Promise<void>
   onSalvarCustos: (data: any) => Promise<void>
@@ -210,7 +301,7 @@ function DetalheContent({
   selected, monitoramentos, colheitas,
   abaDetalhe, setAbaDetalhe,
   verTodosMonitor, setVerTodosMonitor,
-  isAdmin, onAvancar, onSalvarMon, onSalvarColheita, onSalvarCustos,
+  isAdmin, onAvancar, onDeletar, podeAdmin, onSalvarMon, onSalvarColheita, onSalvarCustos,
 }: DetalheProps) {
   const emFrut = selected.status === 'FRUTIFICACAO'
   const emDesc = selected.status === 'DESCANSO'
@@ -290,9 +381,14 @@ function DetalheContent({
               {isAdmin && ` · por ${selected.usuarioNome}`}
             </p>
           </div>
-          {selected.status !== 'CONCLUIDO' && (
-            <button className="btn-primary" style={{ fontSize: 13 }} onClick={onAvancar}>Avançar →</button>
-          )}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {selected.status !== 'CONCLUIDO' && (
+              <button className="btn-primary" style={{ fontSize: 13 }} onClick={onAvancar}>Avançar →</button>
+            )}
+            {podeAdmin && (
+              <button onClick={onDeletar} style={{ background: 'none', color: '#A32D2D', border: '0.5px solid #F09595', borderRadius: 8, padding: '8px 10px', fontSize: 16, cursor: 'pointer' }} title="Deletar experimento">🗑</button>
+            )}
+          </div>
         </div>
         <BarraDinamica exp={selected} />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginTop: 10 }}>
@@ -570,6 +666,7 @@ function Experimentos() {
   const [colheitas, setColheitas]           = useState<Colheita[]>([])
   const [modalAberto, setModalAberto]       = useState(false)
   const [modalAvancar, setModalAvancar]     = useState(false)
+  const [modalDeletar, setModalDeletar]     = useState(false)
   const [abaDetalhe, setAbaDetalhe]         = useState<'monitor' | 'colheitas' | 'custos'>('monitor')
   const [showNovoExp, setShowNovoExp]       = useState(false)
   const [verTodosMonitor, setVerTodosMonitor] = useState(false)
@@ -656,6 +753,14 @@ function Experimentos() {
     if (upd) await abrirDetalhe(upd)
   }
 
+  async function deletar() {
+    if (!selected) return
+    await api.experimentos.deletar(selected.id)
+    const d: any = await api.experimentos.listar()
+    setExperimentos(d)
+    setModalDeletar(false)
+    fecharModal()
+  }
   const ativos       = experimentos.filter(e => e.status !== 'CONCLUIDO').length
   const totalColhido = experimentos.reduce((s, e) => s + (e.financeiro?.totalColhidoKg ?? 0), 0)
   const receitaTotal = experimentos.reduce((s, e) => s + (e.financeiro?.receitaTotal ?? 0), 0)
@@ -723,7 +828,6 @@ function Experimentos() {
               <button onClick={fecharModal} style={{ marginLeft: 'auto', background: '#F0F0F0', border: 'none', width: 32, height: 32, borderRadius: '50%', fontSize: 16, color: '#555', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
             </div>
             <DetalheContent
-              key={selected.id}
               selected={selected}
               monitoramentos={monitoramentos}
               colheitas={colheitas}
@@ -733,6 +837,8 @@ function Experimentos() {
               setVerTodosMonitor={setVerTodosMonitor}
               isAdmin={isAdmin}
               onAvancar={() => setModalAvancar(true)}
+              onDeletar={() => setModalDeletar(true)}
+              podeAdmin={isAdmin}
               onSalvarMon={salvarMon}
               onSalvarColheita={salvarColheita}
               onSalvarCustos={salvarCustos}
@@ -744,6 +850,11 @@ function Experimentos() {
       {/* Modal avançar fase */}
       {modalAvancar && selected && (
         <ModalAvancarFase exp={selected} onConfirmar={avancar} onFechar={() => setModalAvancar(false)} />
+      )}
+
+      {/* Modal deletar */}
+      {modalDeletar && selected && (
+        <ModalDeletarExperimento exp={selected} onConfirmar={deletar} onFechar={() => setModalDeletar(false)} />
       )}
     </div>
   )
