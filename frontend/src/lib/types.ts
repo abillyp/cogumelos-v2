@@ -95,7 +95,9 @@ export interface Experimento {
   totalBlocos: number
   pesoBlocoKg: number | null
   precoVendaKg?: number | null
-  status: 'PREPARACAO' | 'INOCULADO' | 'AMADURECIMENTO' | 'FRUTIFICACAO' | 'CONCLUIDO'
+  status: 'PREPARACAO' | 'INOCULADO' | 'AMADURECIMENTO' | 'FRUTIFICACAO' | 'DESCANSO' | 'CONCLUIDO'
+  cicloAtual: number
+  blocosAtivos: number
   cnTotal: number | null
   custos?: CustoInsumoResponse[]
   insumos?: ExperimentoInsumo[]
@@ -109,6 +111,7 @@ export interface Monitoramento {
   temperatura: number | null
   umidade: number | null
   observacao: string | null
+  blocosPerdidos: number | null
 }
 
 export interface Colheita {
