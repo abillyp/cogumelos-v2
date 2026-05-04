@@ -77,9 +77,9 @@ public class AuthController {
     })
     @PostMapping("/login")
     @Transactional
-    public ResponseEntity<?> registro(@Valid @RequestBody RegistroRequest req,
-                                      HttpServletRequest request) {
-        String ip = request.getRemoteAddr();
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req,
+                                   HttpServletRequest httpRequest) {
+        String ip = httpRequest.getRemoteAddr();
         if (!rateLimitService.tentativaPermitida(ip)) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                     "Muitas tentativas. Aguarde 1 minuto e tente novamente.");

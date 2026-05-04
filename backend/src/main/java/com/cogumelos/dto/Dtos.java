@@ -12,13 +12,16 @@
 package com.cogumelos.dto;
 
 import com.cogumelos.domain.*;
+import com.cogumelos.enums.Fase;
 import jakarta.validation.constraints.*;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 
 public class Dtos {
 
     public record LoginRequest(@Email @NotBlank String email, @NotBlank String senha) {}
+    public record AvancarRequest(Fase proximoStatus){}
     public record RegistroRequest(
             @NotBlank String nome,
             @NotBlank String nomeProdutor,  // ← novo
@@ -132,16 +135,14 @@ public class Dtos {
             String formulacaoNome,
             String especieNome,
             LocalDate dataPreparo,
-            LocalDate dataInoculacao,
-            LocalDate amadurecimentoInicio,
-            LocalDate amadurecimentoFim,
-            LocalDate frutificacaoInicio,
-            LocalDate frutificacaoFim,
             Integer totalBlocos,
             Double pesoBlocoKg,
             Double precoVendaKg,
             String status,
             Double cnTotal,
+            Integer blocosPerdidos,
+            Integer blocosAtivos,
+            Integer cicloAtual,
             List<CustoInsumoResponse> custos,
             List<ExperimentoInsumoResponse> insumos,
             FinanceiroResponse financeiro
@@ -167,6 +168,12 @@ public class Dtos {
                             ))
                             .toList();
 
+            Integer cicloAtual = e.getFases().stream()
+                    .filter(f -> f.getCiclo() != null)
+                    .mapToInt(ExperimentoFase::getCiclo)
+                    .max()
+                    .orElse(1);
+
             return new ExperimentoResponse(
                     e.getId(),
                     e.getCodigo(),
@@ -176,16 +183,14 @@ public class Dtos {
                     e.getFormulacao().getNome(),
                     e.getFormulacao().getEspecie().getNome(),
                     e.getDataPreparo(),
-                    e.getDataInoculacao(),
-                    e.getAmadurecimentoInicio(),
-                    e.getAmadurecimentoFim(),
-                    e.getFrutificacaoInicio(),
-                    e.getFrutificacaoFim(),
                     e.getTotalBlocos(),
                     e.getPesoBlocoKg(),
                     e.getPrecoVendaKg(),
-                    e.getStatus().name(),
+                    e.getFaseAtual().name(),
                     e.getFormulacao().getCnTotal(),
+                    e.getTotalBlocosPerdidos(),
+                    e.getTotalBlocos()-e.getTotalBlocosPerdidos(),
+                    cicloAtual,
                     custos,
                     insumos,
                     fin
@@ -196,12 +201,12 @@ public class Dtos {
     public record StatusRequest(@NotBlank String status) {}
 
     public record MonitoramentoRequest(@NotBlank String sala, @NotNull LocalDate data,
-        Double temperatura, Double umidade, String observacao) {}
+        Double temperatura, Double umidade, String observacao, Integer blocosPerdidos) {}
     public record MonitoramentoResponse(String id, String sala, LocalDate data,
-        Double temperatura, Double umidade, String observacao) {
+        Double temperatura, Double umidade, Integer blocosPerdidos, String observacao) {
         public static MonitoramentoResponse from(LoteMonitoramento m) {
             return new MonitoramentoResponse(m.getId(), m.getSala().name(), m.getData(),
-                m.getTemperatura(), m.getUmidade(), m.getObservacao());
+                m.getTemperatura(), m.getUmidade(), m.getBlocosPerdidos(), m.getObservacao());
         }
     }
 
