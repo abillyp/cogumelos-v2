@@ -96,6 +96,7 @@ export interface Experimento {
   pesoBlocoKg: number | null
   precoVendaKg?: number | null
   status: 'PREPARACAO' | 'INOCULADO' | 'AMADURECIMENTO' | 'FRUTIFICACAO' | 'DESCANSO' | 'CONCLUIDO'
+  blocosPerdidos: number
   cicloAtual: number
   blocosAtivos: number
   cnTotal: number | null
@@ -106,7 +107,7 @@ export interface Experimento {
 
 export interface Monitoramento {
   id: string
-  sala: 'AMADURECIMENTO' | 'FRUTIFICACAO'
+  sala: 'AMADURECIMENTO' | 'FRUTIFICACAO' | 'DESCANSO'
   data: string
   temperatura: number | null
   umidade: number | null
