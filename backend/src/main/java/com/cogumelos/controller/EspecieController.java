@@ -13,6 +13,7 @@ package com.cogumelos.controller;
 
 import com.cogumelos.dto.Dtos;
 import com.cogumelos.repository.EspecieCogumeloRepository;
+import com.cogumelos.service.EspecieService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,14 +24,14 @@ import java.util.List;
 @RequestMapping("/api/especies")
 class EspecieController {
 
-    private final EspecieCogumeloRepository repo;
+    private final EspecieService especieService;
 
-    EspecieController(EspecieCogumeloRepository repo) {
-        this.repo = repo;
+    EspecieController(EspecieService especieService) {
+        this.especieService = especieService;
     }
 
     @GetMapping
     public List<Dtos.EspecieResponse> listar() {
-        return repo.findAll().stream().map(Dtos.EspecieResponse::from).toList();
+        return especieService.listar();
     }
 }

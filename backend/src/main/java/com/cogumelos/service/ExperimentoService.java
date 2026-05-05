@@ -354,6 +354,7 @@ public class ExperimentoService {
                 custoPorKgProduzido, totalColhidoKg, receitaTotal, margemReais, margemPct);
     }
 
+    @Transactional
     public void deletar(String id, String userId) {
 
         Usuario u = usuarioRepo.findById(userId)

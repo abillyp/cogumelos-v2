@@ -132,7 +132,6 @@ public class ExperimentoController {
 
     @Operation(summary = "Deletar experimento")
     @ApiResponse(responseCode = "204", description = "Experimento deletado")
-    @Transactional
     @PreAuthorize("hasAnyRole('ADMIN', 'ADMIN_TENANT')")
     @DeleteMapping("/{id}")
     public ResponseEntity<ExperimentoResponse> deleteExperimento(@Parameter(description = "ID do experimento")  @PathVariable String id,
