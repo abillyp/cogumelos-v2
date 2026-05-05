@@ -60,7 +60,6 @@ public class AuthController {
 
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req,
                                    HttpServletRequest httpRequest) {
-        log.info("=== login chamado: {}", req.email());
         return ResponseEntity.ok(usuarioService.login(req, refreshDays));
 
     }

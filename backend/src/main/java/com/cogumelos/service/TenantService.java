@@ -14,12 +14,14 @@ package com.cogumelos.service;
 import com.cogumelos.domain.Insumo;
 import com.cogumelos.domain.Tenant;
 import com.cogumelos.domain.Usuario;
+import com.cogumelos.dto.AtualizarTenantRequest;
 import com.cogumelos.dto.CriarTenantRequest;
 import com.cogumelos.dto.Dtos;
 import com.cogumelos.dto.TenantAdminResponse;
 import com.cogumelos.enums.PlanoType;
 import com.cogumelos.enums.Role;
 import com.cogumelos.enums.StatusTenant;
+import com.cogumelos.repository.ExperimentoRepository;
 import com.cogumelos.repository.InsumoRepository;
 import com.cogumelos.repository.TenantRepository;
 import com.cogumelos.repository.UsuarioRepository;
@@ -30,6 +32,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -52,14 +55,16 @@ public class TenantService {
     private final InsumoRepository insumoRepo;
     private final UsuarioRepository usuarioRepository;
     private final AuthService  authService;
+    private final ExperimentoRepository  experimentoRepo;
 
 
-    public TenantService(TenantRepository tenantRepo, InsumoRepository insumoRepo, UsuarioRepository repo, BCryptPasswordEncoder encoder, UsuarioService usuarioService, AuthService authService) {
+    public TenantService(TenantRepository tenantRepo, InsumoRepository insumoRepo, UsuarioRepository repo, BCryptPasswordEncoder encoder, UsuarioService usuarioService, AuthService authService, ExperimentoRepository experimentoRepo) {
         this.tenantRepo = tenantRepo;
         this.insumoRepo = insumoRepo;
         this.usuarioRepository = repo;
         this.usuarioService = usuarioService;
         this.authService = authService;
+        this.experimentoRepo = experimentoRepo;
     }
 
     /**
@@ -122,7 +127,7 @@ public class TenantService {
         }
     }
 
-    public ResponseEntity<TenantAdminResponse> criar(CriarTenantRequest req) {
+    public TenantAdminResponse criar(CriarTenantRequest req) {
         if (tenantRepo.existsByEmail(req.email()))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email do tenant já cadastrado");
         if (usuarioRepository.existsByEmail(req.emailAdmin()))
@@ -139,32 +144,95 @@ public class TenantService {
 
         Dtos.RegistroRequest registroRequest = new Dtos.RegistroRequest(req.nome(), req.nomeAdmin(), req.email(), req.senhaAdmin());
 
-        /*
-         @NotBlank String nome,
-            @NotBlank String nomeProdutor,  // ← novo
-            @Email @NotBlank String email,
-            @NotBlank String senha
-    ) {}
-         */
-
-   /*     Usuario admin = new Usuario();
-        admin.setId(UUID.randomUUID().toString());
-        admin.setNome(req.nomeAdmin());
-        admin.setEmail(req.emailAdmin());
-        admin.setSenhaHash(encoder.encode(req.senhaAdmin()));
-        admin.setRole(com.cogumelos.enums.Role.ADMIN_TENANT);
-        admin.setTenant(t);
-        usuarioRepo.save(admin);*/
-
         Dtos.UsuarioResponse usuarioResponse = usuarioService.criar(registroRequest, Role.ADMIN_TENANT);
 
         Usuario admin = Dtos.UsuarioResponse.to(usuarioResponse);
 
-        return ResponseEntity.status(201).body(
-                TenantAdminResponse.from(t, admin, 0L, 1L));
+        return TenantAdminResponse.from(t, admin, 0L, 1L);
     }
 
+    public List<TenantAdminResponse> listar() {
+        return tenantRepo.findAll().stream()
+                .filter(t -> !t.getEmail().equals("sistema@cogumelos.app"))
+                .map(t -> {
+                    Usuario admin = usuarioRepository.findByTenantId(t.getId())
+                            .stream()
+                            .filter(u -> u.getRole().name().contains("ADMIN"))
+                            .findFirst()
+                            .orElse(null);
+                    long exps    = experimentoRepo.countByTenantId(t.getId());
+                    long users   = usuarioRepository.findByTenantId(t.getId()).size();
+                    return TenantAdminResponse.from(t, admin, exps, users);
+                })
+                .toList();
+    }
 
+    public TenantAdminResponse buscar(Long id) {
+        Tenant t = tenantRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant não encontrado"));
+        Usuario admin = usuarioRepository.findByTenantId(t.getId())
+                .stream().filter(u -> u.getRole().name().contains("ADMIN"))
+                .findFirst().orElse(null);
+        long exps  = experimentoRepo.countByTenantId(t.getId());
+        long users = usuarioRepository.findByTenantId(t.getId()).size();
+        return TenantAdminResponse.from(t, admin, exps, users);
+    }
 
+    public TenantAdminResponse atualizar( Long id, AtualizarTenantRequest req) {
+        Tenant t = tenantRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant não encontrado"));
+
+        if (req.nome() != null && !req.nome().isBlank()) t.setNome(req.nome());
+        t.setPlano(req.plano());
+        t.setStatus(req.status());
+        t.setTrialExpira(req.trialExpira());
+        t.setAssinaturaExpira(req.assinaturaExpira());
+        tenantRepo.save(t);
+
+        Usuario admin = usuarioRepository.findByTenantId(t.getId())
+                .stream().filter(u -> u.getRole().name().contains("ADMIN"))
+                .findFirst().orElse(null);
+        return TenantAdminResponse.from(t, admin,
+                experimentoRepo.countByTenantId(t.getId()),
+                usuarioRepository.findByTenantId(t.getId()).size());
+    }
+
+    public TenantAdminResponse estenderTrial( Long id, java.util.Map<String, Integer> body) {
+        int dias = body.getOrDefault("dias", 14);
+        Tenant t = tenantRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant não encontrado"));
+
+        LocalDate base = t.getTrialExpira() != null && t.getTrialExpira().isAfter(LocalDate.now())
+                ? t.getTrialExpira() : LocalDate.now();
+        t.setTrialExpira(base.plusDays(dias));
+        t.setStatus(StatusTenant.TRIAL);
+        tenantRepo.save(t);
+
+        Usuario admin = usuarioRepository.findByTenantId(t.getId())
+                .stream().filter(u -> u.getRole().name().contains("ADMIN"))
+                .findFirst().orElse(null);
+        return TenantAdminResponse.from(t, admin,
+                experimentoRepo.countByTenantId(t.getId()),
+                usuarioRepository.findByTenantId(t.getId()).size());
+    }
+
+    public java.util.Map<String, Object> resumo() {
+        List<Tenant> todos = tenantRepo.findAll().stream()
+                .filter(t -> !t.getEmail().equals("sistema@cogumelos.app"))
+                .toList();
+        long total      = todos.size();
+        long emTrial    = todos.stream().filter(t -> t.getStatus() == StatusTenant.TRIAL).count();
+        long ativos     = todos.stream().filter(t -> t.getStatus() == StatusTenant.ATIVO).count();
+        long expirados  = todos.stream().filter(t -> t.getStatus() == StatusTenant.EXPIRADO
+                || t.getStatus() == StatusTenant.CANCELADO).count();
+        long expira3dias = todos.stream().filter(t -> t.getStatus() == StatusTenant.TRIAL
+                && t.getTrialExpira() != null
+                && !t.getTrialExpira().isBefore(LocalDate.now())
+                && t.getTrialExpira().isBefore(LocalDate.now().plusDays(4))).count();
+        return java.util.Map.of(
+                "total", total, "emTrial", emTrial, "ativos", ativos,
+                "expirados", expirados, "expira3dias", expira3dias
+        );
+    }
 
 }
