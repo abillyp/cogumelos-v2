@@ -34,10 +34,12 @@ function LoginContent() {
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setErro(''); setLoading(true)
-    try {
-      const data: any = tab === 'login'
-        ? await api.auth.login({ email, senha })
-        : await api.auth.registro({ nome, nomeProdutor, email, senha })
+  try {
+    console.log('=== chamando login', { email, senha: '***' })
+    const data: any = tab === 'login'
+      ? await api.auth.login({ email, senha })
+      : await api.auth.registro({ nome, nomeProdutor, email, senha })
+    console.log('=== response', data)
 
       login(data.token, data.refreshToken, {
         id: data.id, nome: data.nome, email: data.email, role: data.role,

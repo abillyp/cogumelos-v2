@@ -5,10 +5,7 @@ import com.cogumelos.dto.Dtos.*;
 import com.cogumelos.enums.PlanoType;
 import com.cogumelos.enums.Role;
 import com.cogumelos.repository.*;
-import com.cogumelos.service.JwtService;
-import com.cogumelos.service.EmailService;
-import com.cogumelos.service.RateLimitService;
-import com.cogumelos.service.TenantService;
+import com.cogumelos.service.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -38,34 +35,18 @@ public class AuthController {
 
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
-    private final UsuarioRepository usuarioRepo;
-    private final TenantRepository tenantRepo;
-    private final RefreshTokenRepository refreshRepo;
-    private final BCryptPasswordEncoder encoder;
-    private final JwtService jwtService;
+    private final UsuarioService usuarioService;
+    private final AuthService  authService;
     private final TenantService tenantService;
-    private final PasswordResetTokenRepository passwordResetRepo;
-    private final EmailService emailService;
-    private final RateLimitService rateLimitService;
 
-    @Value("${jwt.refresh-expiration-days:30}")
+    @Value("${jwt.refresh-expiration-days:1}")
     private int refreshDays;
 
-    public AuthController(UsuarioRepository usuarioRepo,
-                          TenantRepository tenantRepo,
-                          RefreshTokenRepository refreshRepo,
-                          BCryptPasswordEncoder encoder,
-                          JwtService jwtService,
-                          TenantService tenantService, PasswordResetTokenRepository passwordResetRepo, EmailService emailService, RateLimitService rateLimitService) {
-        this.usuarioRepo   = usuarioRepo;
-        this.tenantRepo    = tenantRepo;
-        this.refreshRepo   = refreshRepo;
-        this.encoder       = encoder;
-        this.jwtService    = jwtService;
+    public AuthController(UsuarioService usuarioService, AuthService authService,
+                          TenantService tenantService) {
+        this.usuarioService = usuarioService;
+        this.authService = authService;
         this.tenantService = tenantService;
-        this.passwordResetRepo = passwordResetRepo;
-        this.emailService = emailService;
-        this.rateLimitService = rateLimitService;
     }
 
     @Operation(summary = "Login com email e senha",
@@ -76,21 +57,12 @@ public class AuthController {
             content = @Content(examples = @ExampleObject(value = "{\"erro\": \"Email ou senha inválidos\"}")))
     })
     @PostMapping("/login")
-    @Transactional
+
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req,
                                    HttpServletRequest httpRequest) {
-        String ip = httpRequest.getRemoteAddr();
-        if (!rateLimitService.tentativaPermitida(ip)) {
-            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
-                    "Muitas tentativas. Aguarde 1 minuto e tente novamente.");
-        }
+        log.info("=== login chamado: {}", req.email());
+        return ResponseEntity.ok(usuarioService.login(req, refreshDays));
 
-        Usuario u = usuarioRepo.findByEmail(req.email())
-                .orElseThrow(() -> new RuntimeException("Email ou senha inválidos"));
-        if (!u.isAtivo()) throw new RuntimeException("Usuário inativo. Contate o administrador.");
-        if (!encoder.matches(req.senha(), u.getSenhaHash()))
-            throw new RuntimeException("Email ou senha inválidos");
-        return ResponseEntity.ok(buildLoginResponse(u));
     }
 
     @Operation(summary = "Registro de novo produtor",
@@ -100,38 +72,8 @@ public class AuthController {
         @ApiResponse(responseCode = "400", description = "Email já cadastrado ou dados inválidos")
     })
     @PostMapping("/registro")
-    @Transactional
     public ResponseEntity<?> registro(@Valid @RequestBody RegistroRequest req) {
-        if (usuarioRepo.existsByEmail(req.email()))
-            throw new RuntimeException("Email já cadastrado");
-        try {
-            // Cria o tenant com trial de 14 dias
-            Tenant tenant = new Tenant();
-            tenant.setNome(req.nomeProdutor());
-            tenant.setEmail(req.email());
-            tenant.setPlano(PlanoType.BASICO);
-            tenant.setStatus(com.cogumelos.enums.StatusTenant.TRIAL);
-            tenant.setTrialExpira(java.time.LocalDate.now().plusDays(14));
-            tenantRepo.save(tenant);
-
-            // Copia insumos do catálogo padrão
-            tenantService.inicializarTenant(tenant);
-
-            // Cria o usuário ADMIN_TENANT
-            Usuario u = new Usuario();
-            u.setId(UUID.randomUUID().toString());
-            u.setNome(req.nome());
-            u.setEmail(req.email());
-            u.setSenhaHash(encoder.encode(req.senha()));
-            u.setRole(Role.ADMIN_TENANT);
-            u.setTenant(tenant);
-            usuarioRepo.save(u);
-
-            return ResponseEntity.status(201).body(buildLoginResponse(u));
-        } catch (Exception e) {
-            log.error("Erro no registro: {}", e.getMessage(), e);
-            throw e;
-        }
+        return ResponseEntity.status(201).body(tenantService.registro(req, refreshDays));
     }
 
     @Operation(summary = "Renovar token de acesso",
@@ -141,94 +83,37 @@ public class AuthController {
         @ApiResponse(responseCode = "400", description = "Refresh token inválido ou expirado")
     })
     @PostMapping("/refresh")
-    @Transactional
     public ResponseEntity<?> refresh(@RequestBody Map<String, String> body) {
         String rt = body.get("refreshToken");
-        RefreshToken token = refreshRepo.findByToken(rt)
-                .orElseThrow(() -> new RuntimeException("Refresh token inválido"));
-        if (!token.isValido()) throw new RuntimeException("Refresh token expirado ou já utilizado");
-        token.setUsado(true);
-        refreshRepo.save(token);
-        return ResponseEntity.ok(buildLoginResponse(token.getUsuario()));
+        return ResponseEntity.ok(authService.refresh(rt, refreshDays));
     }
 
     @Operation(summary = "Logout", description = "Invalida o refresh token informado.")
     @PostMapping("/logout")
-    @Transactional
     public ResponseEntity<Void> logout(@RequestBody Map<String, String> body) {
         String rt = body.get("refreshToken");
-        refreshRepo.findByToken(rt).ifPresent(t -> { t.setUsado(true); refreshRepo.save(t); });
+        authService.logout(rt);
         return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "Solicitar recuperação de senha")
     @PostMapping("/esqueci-senha")
-    @Transactional
     public ResponseEntity<?> esqueciSenha(@RequestBody Map<String, String> body) {
-        try {
-            String email = body.get("email");
-            log.info("=== esqueci-senha: {}", email);
-            usuarioRepo.findByEmail(email).ifPresent(u -> {
-                if (u.getSenhaHash().equals("OAUTH2_NO_PASSWORD")) return;
-                passwordResetRepo.deleteByUsuarioId(u.getId());
-                PasswordResetToken prt = new PasswordResetToken();
-                prt.setId(UUID.randomUUID().toString());
-                prt.setToken(UUID.randomUUID().toString());
-                prt.setUsuario(u);
-                prt.setExpiraEm(LocalDateTime.now().plusHours(1));
-                passwordResetRepo.save(prt);
-                emailService.enviarRecuperacaoSenha(email, prt.getToken());
-            });
-            return ResponseEntity.ok(Map.of("mensagem", "Se o email estiver cadastrado, você receberá as instruções em breve."));
-        } catch (Exception e) {
-            log.error("=== esqueci-senha erro: {}", e.getMessage(), e);
-            throw e;
-        }
+            return ResponseEntity.ok(usuarioService.esqueciSenha(body));
     }
 
     @Operation(summary = "Redefinir senha com token")
     @PostMapping("/redefinir-senha")
-    @Transactional
     public ResponseEntity<?> redefinirSenha(@RequestBody Map<String, String> body) {
-        String token = body.get("token");
-        String novaSenha = body.get("novaSenha");
-
-        PasswordResetToken prt = passwordResetRepo.findByToken(token)
-                .orElseThrow(() -> new RuntimeException("Token inválido"));
-
-        if (!prt.isValido()) throw new RuntimeException("Token expirado ou já utilizado");
-
-        Usuario u = prt.getUsuario();
-        u.setSenhaHash(encoder.encode(novaSenha));
-        usuarioRepo.save(u);
-
-        prt.setUsado(true);
-        passwordResetRepo.save(prt);
-
-        return ResponseEntity.ok(Map.of("mensagem", "Senha redefinida com sucesso."));
+        return ResponseEntity.ok(usuarioService.redefinirSenha(body));
     }
 
     @Operation(summary = "Alterar senha autenticado")
     @PatchMapping("/alterar-senha")
-    @Transactional
     public ResponseEntity<?> alterarSenha(
             @RequestBody Map<String, String> body,
             org.springframework.security.core.Authentication auth) {
-
-        String userId = (String) auth.getPrincipal();
-        Usuario u = usuarioRepo.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
-
-        if (u.getSenhaHash().equals("OAUTH2_NO_PASSWORD"))
-            throw new RuntimeException("Usuários Google não podem alterar senha por aqui.");
-
-        if (!encoder.matches(body.get("senhaAtual"), u.getSenhaHash()))
-            throw new RuntimeException("Senha atual incorreta.");
-
-        u.setSenhaHash(encoder.encode(body.get("novaSenha")));
-        usuarioRepo.save(u);
-
-        return ResponseEntity.ok(Map.of("mensagem", "Senha alterada com sucesso."));
+        return ResponseEntity.ok(usuarioService.alterarSenha(body.get("senhaAtual"), body.get("novaSenha"), auth.getPrincipal().toString()));
     }
 
     @Operation(summary = "Dados do usuário logado")
@@ -236,29 +121,8 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<?> me(org.springframework.security.core.Authentication auth) {
         String userId = (String) auth.getPrincipal();
-        Usuario u = usuarioRepo.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
-        return ResponseEntity.ok(Map.of(
-                "id", u.getId(), "nome", u.getNome(),
-                "email", u.getEmail(), "role", u.getRole().name()
-        ));
+        return ResponseEntity.ok(usuarioService.me(userId));
     }
 
-    private Map<String, Object> buildLoginResponse(Usuario u) {
-        String token = jwtService.gerar(
-                u.getId(), u.getEmail(), u.getRole().name(),
-                u.getTenant().getId(), u.getTenant().getPlano().name(),
-                u.getSenhaHash().equals("OAUTH2_NO_PASSWORD") ? "GOOGLE" : "EMAIL"
-        );
-        RefreshToken rt = new RefreshToken();
-        rt.setId(UUID.randomUUID().toString());
-        rt.setToken(UUID.randomUUID().toString());
-        rt.setUsuario(u);
-        rt.setExpiraEm(LocalDateTime.now().plusDays(refreshDays));
-        refreshRepo.save(rt);
-        return Map.of("token", token, "refreshToken", rt.getToken(),
-                "id", u.getId(), "nome", u.getNome(),
-                "email", u.getEmail(), "role", u.getRole().name(),
-                "loginType", u.getSenhaHash().equals("OAUTH2_NO_PASSWORD") ? "GOOGLE" : "EMAIL");
-    }
+
 }

@@ -69,7 +69,7 @@ function MobileHome() {
     return e.status === 'FRUTIFICACAO' || e.status === 'AMADURECIMENTO'
   })
   const receitaTotal = experimentos.reduce((s, e) => s + (e.financeiro?.receitaTotal ?? 0), 0)
-  const primeiroNome = user?.nome.split(' ')[0] ?? ''
+  const primeiroNome = user?.nome?.split(' ')[0] ?? ''
 
   const hora = new Date().getHours()
   const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite'

@@ -13,6 +13,7 @@ package com.cogumelos.dto;
 
 import com.cogumelos.domain.*;
 import com.cogumelos.enums.Fase;
+import com.cogumelos.enums.Role;
 import jakarta.validation.constraints.*;
 import java.time.LocalDate;
 import java.util.Comparator;
@@ -34,10 +35,22 @@ public class Dtos {
     ) {}
 
     public record AuthResponse(String token, String refreshToken, String id, String nome, String email, String role) {}
-    public record UsuarioResponse(String id, String nome, String email, String role, boolean ativo, String criadoEm) {
+    public record UsuarioResponse(String id, String nome, String email, String role, boolean ativo, String criadoEm, String senhaHash) {
         public static UsuarioResponse from(Usuario u) {
-            return new UsuarioResponse(u.getId(), u.getNome(), u.getEmail(), u.getRole().name(), u.isAtivo(), u.getCriadoEm().toString());
+            return new UsuarioResponse(u.getId(), u.getNome(), u.getEmail(), u.getRole().name(), u.isAtivo(), u.getCriadoEm().toString(), u.getSenhaHash());
         }
+        public static Usuario to(UsuarioResponse u) {
+            Usuario usuario= new Usuario();
+                    usuario.setId(u.id());
+                    usuario.setNome(u.nome());
+                    usuario.setEmail(u.email());
+                    usuario.setRole(Role.valueOf(u.role()));
+                    usuario.setAtivo(u.ativo());
+                    usuario.setCriadoEm(LocalDate.parse(u.criadoEm()));
+                    usuario.setSenhaHash(u.senhaHash());
+                    return usuario;
+        }
+
     }
     public record UsuarioUpdateRequest(String nome, String role, Boolean ativo) {}
 

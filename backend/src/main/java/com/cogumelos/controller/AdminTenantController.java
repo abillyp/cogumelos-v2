@@ -2,6 +2,9 @@ package com.cogumelos.controller;
 
 import com.cogumelos.domain.Tenant;
 import com.cogumelos.domain.Usuario;
+import com.cogumelos.dto.AtualizarTenantRequest;
+import com.cogumelos.dto.TenantAdminResponse;
+import com.cogumelos.dto.CriarTenantRequest;
 import com.cogumelos.enums.PlanoType;
 import com.cogumelos.enums.StatusTenant;
 import com.cogumelos.repository.ExperimentoRepository;
@@ -10,9 +13,6 @@ import com.cogumelos.repository.UsuarioRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -44,48 +43,6 @@ public class AdminTenantController {
         this.encoder         = encoder;
     }
 
-    // ── DTOs ──────────────────────────────────────────────────────────────────
-
-    public record TenantAdminResponse(
-            Long id, String nome, String email,
-            String plano, String status,
-            LocalDate trialExpira, LocalDate assinaturaExpira,
-            LocalDateTime criadoEm,
-            String usuarioAdminNome, String usuarioAdminEmail,
-            long totalExperimentos, long totalUsuarios
-    ) {
-        public static TenantAdminResponse from(Tenant t, Usuario admin,
-                                               long experimentos, long usuarios) {
-            return new TenantAdminResponse(
-                    t.getId(), t.getNome(), t.getEmail(),
-                    t.getPlano().name(), t.getStatus().name(),
-                    t.getTrialExpira(), t.getAssinaturaExpira(),
-                    t.getCriadoEm(),
-                    admin != null ? admin.getNome() : "—",
-                    admin != null ? admin.getEmail() : "—",
-                    experimentos, usuarios
-            );
-        }
-    }
-
-    public record AtualizarTenantRequest(
-            String nome,
-            @NotNull PlanoType plano,
-            @NotNull StatusTenant status,
-            LocalDate trialExpira,
-            LocalDate assinaturaExpira
-    ) {}
-
-    public record CriarTenantRequest(
-            @NotBlank String nome,
-            @NotBlank @Email String email,
-            @NotBlank String nomeAdmin,
-            @NotBlank String emailAdmin,
-            @NotBlank String senhaAdmin,
-            @NotNull PlanoType plano
-    ) {}
-
-    // ── Endpoints ─────────────────────────────────────────────────────────────
 
     @Operation(summary = "Listar todos os tenants",
         description = "Retorna todos os tenants com métricas de uso. Requer role ADMIN.")
@@ -213,4 +170,10 @@ public class AdminTenantController {
                 "expirados", expirados, "expira3dias", expira3dias
         );
     }
+
+//    @Operation(summary = "Lista todos os usuários de um tenant")
+//    @GetMapping("{tenantId}/usuarios")
+//    public java.util.Collection<Usuario> usuarios(@PathVariable("tenantId") String tenantId) {
+//
+//    }
 }

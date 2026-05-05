@@ -11,85 +11,60 @@
 
 package com.cogumelos.controller;
 
-import com.cogumelos.domain.Tenant;
 import com.cogumelos.domain.Usuario;
 import com.cogumelos.dto.Dtos.*;
 import com.cogumelos.enums.Role;
 import com.cogumelos.repository.TenantRepository;
 import com.cogumelos.repository.UsuarioRepository;
 import com.cogumelos.security.TenantContext;
+import com.cogumelos.service.TenantService;
+import com.cogumelos.service.UsuarioService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin")
 public class AdminController {
 
-    private final UsuarioRepository repo;
-    private final TenantRepository tenantRepo;
-    private final BCryptPasswordEncoder encoder;
 
-    public AdminController(UsuarioRepository repo, TenantRepository tenantRepo, BCryptPasswordEncoder encoder) {
-        this.repo       = repo;
-        this.tenantRepo = tenantRepo;
-        this.encoder    = encoder;
+    private final TenantService tenantService;
+    private final UsuarioService usuarioService;
+
+    public AdminController(TenantService tenantService, UsuarioService usuarioService) {
+        this.tenantService = tenantService;
+        this.usuarioService = usuarioService;
     }
 
     // ✅ lista só usuários do tenant atual
     @GetMapping("/usuarios")
     public List<UsuarioResponse> listar() {
-        return repo.findByTenantId(TenantContext.getTenantId())
-                .stream().map(UsuarioResponse::from).toList();
+        return tenantService.listar(TenantContext.getTenantId());
     }
 
     // ✅ cria usuário dentro do tenant atual
     @PostMapping("/usuarios")
     public ResponseEntity<UsuarioResponse> criar(@RequestBody RegistroRequest req) {
-        if (repo.existsByEmail(req.email()))
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email já cadastrado");
-
-        Usuario u = new Usuario();
-        u.setId(UUID.randomUUID().toString());
-        u.setNome(req.nome());
-        u.setEmail(req.email());
-        u.setSenhaHash(encoder.encode(req.senha()));
-        u.setRole(Role.PRODUTOR);
-        Tenant tenant = tenantRepo.findById(TenantContext.getTenantId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant não encontrado"));
-        u.setTenant(tenant); // ✅ vincula ao tenant
-
-        return ResponseEntity.status(201).body(UsuarioResponse.from(repo.save(u)));
+         return ResponseEntity.status(201).body(usuarioService.criar(req));
     }
 
     @PatchMapping("/usuarios/{id}")
     public UsuarioResponse atualizar(@PathVariable String id,
                                      @RequestBody UsuarioUpdateRequest req) {
-        // ✅ busca dentro do tenant
-        Usuario u = repo.findByIdAndTenantId(id, TenantContext.getTenantId())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Usuário não encontrado"));
-
-        if (req.nome() != null)  u.setNome(req.nome());
-        if (req.role() != null)  u.setRole(Role.valueOf(req.role()));
-        if (req.ativo() != null) u.setAtivo(req.ativo());
-
-        return UsuarioResponse.from(repo.save(u));
+        return usuarioService.atualizar(id, req);
     }
 
+    @Transactional
+    @PreAuthorize("hasAnyRole('ADMIN'")
     @DeleteMapping("/usuarios/{id}")
     public ResponseEntity<Void> deletar(@PathVariable String id) {
-        // ✅ confirma que pertence ao tenant antes de deletar
-        repo.findByIdAndTenantId(id, TenantContext.getTenantId())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Usuário não encontrado"));
-
-        repo.deleteById(id);
+        usuarioService.deletar(id,TenantContext.getTenantId());
         return ResponseEntity.noContent().build();
     }
 }

@@ -7,6 +7,7 @@ import com.cogumelos.security.TrialFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -35,7 +36,7 @@ public class SecurityConfig {
 
     public SecurityConfig(JwtFilter jwtFilter,
                           TrialFilter trialFilter,
-                          OAuth2SuccessHandler oAuth2SuccessHandler,
+                          @Lazy OAuth2SuccessHandler oAuth2SuccessHandler,
                           CookieOAuth2RequestRepository cookieOAuth2RequestRepository) {
         this.jwtFilter                     = jwtFilter;
         this.trialFilter                   = trialFilter;

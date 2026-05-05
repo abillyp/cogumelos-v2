@@ -54,7 +54,7 @@ export default function Navbar() {
               className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
               <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium text-white shrink-0"
                 style={{ background: 'var(--purple)' }}>
-                {user.nome.charAt(0).toUpperCase()}
+                {user?.nome?.charAt(0)?.toUpperCase() ?? '?'}
               </div>
               <span className="hidden sm:block text-sm text-gray-700 max-w-[120px] truncate">{user.nome}</span>
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-gray-400">
