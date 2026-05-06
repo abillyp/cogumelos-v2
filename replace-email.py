@@ -13,7 +13,7 @@ import sys
 import argparse
 from pathlib import Path
 
-OLD_EMAIL = "alessandro.billy@organico4you.com.br"
+OLD_EMAIL = "billy@cogumelos"
 NEW_EMAIL = "alessandro.billy@organico4you.com.br"
 
 IGNORE_DIRS = {
@@ -29,6 +29,9 @@ EXTENSIONS = {
 
 
 def deve_ignorar(path: Path) -> bool:
+    # ✅ ignora o próprio script
+    if path.name == "replace-email.py":
+        return True
     for part in path.parts:
         if part in IGNORE_DIRS:
             return True
