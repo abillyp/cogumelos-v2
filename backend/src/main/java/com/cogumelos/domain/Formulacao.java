@@ -48,9 +48,9 @@ public class Formulacao extends TenantEntity implements Persistable<String> {
         this.isNew = false;
     }
 
-    @NotNull
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "usuario_id", nullable = false)
+    @JoinColumn(name = "usuario_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_formulacoes_usuario"))
     private Usuario usuario;
 
     @NotNull(message = "especie não pode ser nulo")

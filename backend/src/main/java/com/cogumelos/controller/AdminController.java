@@ -59,7 +59,7 @@ public class AdminController {
     @PreAuthorize("hasAnyRole('ADMIN'")
     @DeleteMapping("/usuarios/{id}")
     public ResponseEntity<Void> deletar(@PathVariable String id) {
-        usuarioService.deletar(id,TenantContext.getTenantId());
+        usuarioService.deletarUsuario(id,TenantContext.getTenantId());
         return ResponseEntity.noContent().build();
     }
 }

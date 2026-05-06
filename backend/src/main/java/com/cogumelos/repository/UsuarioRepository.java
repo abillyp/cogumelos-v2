@@ -21,4 +21,6 @@ public interface UsuarioRepository extends JpaRepository<Usuario, String> {
     boolean existsByEmail(String email);
     List<Usuario> findByTenantId(Long tenantId);
     Optional<Usuario> findByIdAndTenantId(String id, Long tenantId);
+
+    long countByTenantId(Long tenantId);
 }

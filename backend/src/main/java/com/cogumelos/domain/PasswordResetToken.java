@@ -19,7 +19,8 @@ public class PasswordResetToken {
     private String token;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "usuario_id", nullable = false)
+    @JoinColumn(name = "usuario_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_password_reset_tokens_usuario"))
     private Usuario usuario;
 
     @Column(nullable = false)

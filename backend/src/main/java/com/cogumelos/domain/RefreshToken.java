@@ -30,7 +30,8 @@ public class RefreshToken {
     private String token;
 
     @ManyToOne(optional = false, fetch = FetchType.EAGER)
-    @JoinColumn(name = "usuario_id", nullable = false)
+    @JoinColumn(name = "usuario_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_refresh_tokens_usuario"))
     private Usuario usuario;
 
     @Column(name = "expira_em", nullable = false)

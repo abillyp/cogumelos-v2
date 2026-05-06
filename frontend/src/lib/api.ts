@@ -21,8 +21,6 @@ export function clearTokens() {
   localStorage.removeItem('user')
 }
 
-
-
 let refreshando = false
 let filaRefresh: Array<(token: string) => void> = []
 
@@ -104,9 +102,9 @@ export const api = {
       body: JSON.stringify({ refreshToken }),
     }),
     me: () => req('/auth/me'),
-    esqueciSenha:    (email: string) => req('/auth/esqueci-senha', { method: 'POST', body: JSON.stringify({ email }) }),
-    redefinirSenha:  (token: string, novaSenha: string) => req('/auth/redefinir-senha', { method: 'POST', body: JSON.stringify({ token, novaSenha }) }),
-    alterarSenha:    (senhaAtual: string, novaSenha: string) => req('/auth/alterar-senha', { method: 'PATCH', body: JSON.stringify({ senhaAtual, novaSenha }) }),
+    esqueciSenha:   (email: string) => req('/auth/esqueci-senha', { method: 'POST', body: JSON.stringify({ email }) }),
+    redefinirSenha: (token: string, novaSenha: string) => req('/auth/redefinir-senha', { method: 'POST', body: JSON.stringify({ token, novaSenha }) }),
+    alterarSenha:   (senhaAtual: string, novaSenha: string) => req('/auth/alterar-senha', { method: 'PATCH', body: JSON.stringify({ senhaAtual, novaSenha }) }),
   },
 
   admin: {
@@ -117,14 +115,18 @@ export const api = {
       deletar:   (id: string)                 => req(`/admin/usuarios/${id}`, { method: 'DELETE' }),
     },
     tenants: {
-      listar:       ()                            => req('/admin/tenants'),
-      resumo:       ()                            => req('/admin/tenants/resumo'),
-      buscar:       (id: number)                  => req(`/admin/tenants/${id}`),
-      atualizar:    (id: number, body: unknown)   => req(`/admin/tenants/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
-      criar:        (body: unknown)               => req('/admin/tenants', { method: 'POST', body: JSON.stringify(body) }),
-      estenderTrial:(id: number, dias: number)    => req(`/admin/tenants/${id}/estender-trial`, { method: 'POST', body: JSON.stringify({ dias }) }),
+      listar:         ()                                            => req('/admin/tenants'),
+      resumo:         ()                                            => req('/admin/tenants/resumo'),
+      buscar:         (id: number)                                  => req(`/admin/tenants/${id}`),
+      atualizar:      (id: number, body: unknown)                   => req(`/admin/tenants/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+      criar:          (body: unknown)                               => req('/admin/tenants', { method: 'POST', body: JSON.stringify(body) }),
+      estenderTrial:  (id: number, dias: number)                    => req(`/admin/tenants/${id}/estender-trial`, { method: 'POST', body: JSON.stringify({ dias }) }),
+      deletar:        (id: number)                                  => req(`/admin/tenants/${id}`, { method: 'DELETE' }),
+      listarUsuarios: (id: number)                                  => req(`/admin/tenants/${id}/usuarios`),
+      removerUsuario: (tenantId: number, usuarioId: string)         => req(`/admin/tenants/${tenantId}/usuarios/${usuarioId}`, { method: 'DELETE' }),
     },
   },
+
   insumos: {
     listar:     ()                           => req('/insumos'),
     categorias: ()                           => req('/insumos/categorias'),
@@ -151,17 +153,14 @@ export const api = {
     criar:          (body: unknown)  => req('/experimentos', { method: 'POST', body: JSON.stringify(body) }),
     avancar: (id: string, body?: { proximoStatus: string }) =>
       req(`/experimentos/${id}/avancar`, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
-      deletar: (id: string) => req(`/experimentos/${id}`, { method: 'DELETE' }),
-      resumoDelete: (id: string) => req(`/experimentos/${id}/resumo-delete`),
+    deletar:      (id: string) => req(`/experimentos/${id}`, { method: 'DELETE' }),
+    resumoDelete: (id: string) => req(`/experimentos/${id}/resumo-delete`),
     monitoramentos: {
       listar: (id: string)                => req(`/experimentos/${id}/monitoramentos`),
       criar:  (id: string, body: unknown) => req(`/experimentos/${id}/monitoramentos`, { method: 'POST', body: JSON.stringify(body) }),
     },
-	salvarCustos: (id: string, body: unknown) =>
-	  req(`/experimentos/${id}/custos`, {
-		method: 'PUT',
-		body: JSON.stringify(body),
-	  }),	
+    salvarCustos: (id: string, body: unknown) =>
+      req(`/experimentos/${id}/custos`, { method: 'PUT', body: JSON.stringify(body) }),
     colheitas: {
       listar: (id: string)                => req(`/experimentos/${id}/colheitas`),
       criar:  (id: string, body: unknown) => req(`/experimentos/${id}/colheitas`, { method: 'POST', body: JSON.stringify(body) }),

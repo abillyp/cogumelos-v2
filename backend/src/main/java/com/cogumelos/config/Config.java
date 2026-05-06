@@ -52,6 +52,7 @@ class GlobalExceptionHandler {
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> handleRuntime(RuntimeException ex) {
         String msg = ex.getMessage();
+        ex.printStackTrace();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
             .body(Map.of("erro", msg != null ? msg : "Requisição inválida"));
     }

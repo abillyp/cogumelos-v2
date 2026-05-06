@@ -30,9 +30,9 @@ public class LoteMonitoramento extends TenantEntity{
     @Id
     private String id;
 
-    @NotNull
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "experimento_id", nullable = false)
+    @JoinColumn(name = "experimento_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_lote_monitoramentos_experimento"))
     private Experimento experimento;
 
     @NotNull

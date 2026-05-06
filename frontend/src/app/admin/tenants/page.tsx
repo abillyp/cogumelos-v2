@@ -18,6 +18,9 @@ interface Resumo {
   total: number; emTrial: number; ativos: number
   expirados: number; expira3dias: number
 }
+interface UsuarioTenant {
+  id: string; nome: string; email: string; role: string
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const STATUS_LABEL: Record<string, string> = {
@@ -53,7 +56,6 @@ const inputSt: React.CSSProperties = {
   border: '1.5px solid #D0CDE8', borderRadius: 8,
   padding: '8px 12px', fontSize: 13, color: '#111', outline: 'none',
 }
-
 const modalBoxSt: React.CSSProperties = {
   background: '#fff', border: '0.5px solid #EBEBEB',
   borderRadius: 12, padding: 20,
@@ -66,9 +68,6 @@ const btnSmSt: React.CSSProperties = {
   padding: '5px 10px', fontSize: 12, background: 'transparent',
   color: 'var(--color-text-secondary)', cursor: 'pointer',
 }
-
-// ── Componentes auxiliares ─────────────────────────────────────────────────────
-
 
 // ── Export principal ───────────────────────────────────────────────────────────
 export default function AdminTenantsPage() {
@@ -90,21 +89,31 @@ function AdminTenants() {
   const [showNovo, setShowNovo]         = useState(false)
   const [salvando, setSalvando]         = useState(false)
   const [erro, setErro]                 = useState('')
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false)
+  const [confirmNome, setConfirmNome]             = useState('')
+  const [excluindo, setExcluindo]                 = useState(false)
+
+  // modal usuários
+  const [showUsuarios, setShowUsuarios]       = useState(false)
+  const [tenantUsuarios, setTenantUsuarios]   = useState<TenantAdmin | null>(null)
+  const [usuarios, setUsuarios]               = useState<UsuarioTenant[]>([])
+  const [loadingUsuarios, setLoadingUsuarios] = useState(false)
+  const [removendo, setRemovendo]             = useState<string | null>(null)
 
   // form edição
-  const [fNome, setFNome]                       = useState('')
-  const [fPlano, setFPlano]                     = useState('BASICO')
-  const [fStatus, setFStatus]                   = useState('TRIAL')
-  const [fTrialExpira, setFTrialExpira]         = useState('')
+  const [fNome, setFNome]                         = useState('')
+  const [fPlano, setFPlano]                       = useState('BASICO')
+  const [fStatus, setFStatus]                     = useState('TRIAL')
+  const [fTrialExpira, setFTrialExpira]           = useState('')
   const [fAssinaturaExpira, setFAssinaturaExpira] = useState('')
 
   // form novo
-  const [nNome, setNNome]         = useState('')
-  const [nEmail, setNEmail]       = useState('')
-  const [nAdminNome, setNAdminNome] = useState('')
+  const [nNome, setNNome]             = useState('')
+  const [nEmail, setNEmail]           = useState('')
+  const [nAdminNome, setNAdminNome]   = useState('')
   const [nAdminEmail, setNAdminEmail] = useState('')
   const [nAdminSenha, setNAdminSenha] = useState('')
-  const [nPlano, setNPlano]       = useState('BASICO')
+  const [nPlano, setNPlano]           = useState('BASICO')
 
   const carregar = useCallback(async () => {
     try {
@@ -134,7 +143,54 @@ function AdminTenants() {
     setFTrialExpira(t.trialExpira?.slice(0, 10) ?? '')
     setFAssinaturaExpira(t.assinaturaExpira?.slice(0, 10) ?? '')
     setErro('')
+    setShowConfirmDelete(false)
+    setConfirmNome('')
     setShowModal(true)
+  }
+
+  async function abrirUsuarios(t: TenantAdmin) {
+    setTenantUsuarios(t)
+    setUsuarios([])
+    setShowUsuarios(true)
+    setLoadingUsuarios(true)
+    try {
+      const data = await api.admin.tenants.listarUsuarios(t.id) as UsuarioTenant[]
+      setUsuarios(data)
+    } catch (e: any) {
+      alert(e.message)
+    } finally {
+      setLoadingUsuarios(false)
+    }
+  }
+
+  async function removerUsuario(usuarioId: string) {
+    if (!tenantUsuarios) return
+    setRemovendo(usuarioId)
+    try {
+      await api.admin.tenants.removerUsuario(tenantUsuarios.id, usuarioId)
+      setUsuarios(prev => prev.filter(u => u.id !== usuarioId))
+      setTenants(prev => prev.map(t =>
+        t.id === tenantUsuarios.id ? { ...t, totalUsuarios: t.totalUsuarios - 1 } : t
+      ))
+    } catch (e: any) {
+      alert(e.message)
+    } finally {
+      setRemovendo(null)
+    }
+  }
+
+  async function excluirTenant() {
+    if (!editando) return
+    setExcluindo(true)
+    try {
+      await api.admin.tenants.deletar(editando.id)
+      setShowModal(false)
+      await carregar()
+    } catch (e: any) {
+      setErro(e.message)
+    } finally {
+      setExcluindo(false)
+    }
   }
 
   async function salvar() {
@@ -263,7 +319,7 @@ function AdminTenants() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: 'var(--color-background-secondary)' }}>
-              {['Usuário / Tenant', 'Role', 'Plano / Status', 'Trial / Expiração', 'Exp.', 'Ações'].map((h, i) => (
+              {['Usuário / Tenant', 'Role', 'Plano / Status', 'Trial / Expiração', 'Usuários', 'Ações'].map((h, i) => (
                 <th key={h} style={{ padding: '10px 16px', textAlign: i === 5 ? 'right' : 'left', fontSize: 11, fontWeight: 500, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '.06em', borderBottom: '0.5px solid var(--color-border-tertiary)', whiteSpace: 'nowrap' }}>
                   {h}
                 </th>
@@ -321,7 +377,21 @@ function AdminTenants() {
                       </p>
                     )}
                   </td>
-                  <td style={{ padding: '12px 16px' }}>{t.totalExperimentos}</td>
+
+                  {/* ── Coluna Usuários — link clicável ── */}
+                  <td style={{ padding: '12px 16px' }}>
+                    <button
+                      onClick={() => abrirUsuarios(t)}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        color: '#534AB7', fontSize: 13, fontWeight: 500, padding: 0,
+                        textDecoration: 'underline', textUnderlineOffset: 3,
+                      }}
+                    >
+                      {t.totalUsuarios} {t.totalUsuarios === 1 ? 'usuário' : 'usuários'} →
+                    </button>
+                  </td>
+
                   <td style={{ padding: '12px 16px' }}>
                     <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                       {t.status === 'TRIAL' && (
@@ -347,14 +417,14 @@ function AdminTenants() {
         </table>
       </div>
 
-      {/* Modais renderizados como siblings do div principal */}
+      {/* ── Modal editar tenant ── */}
       {showModal && editando && (
         <div
           style={{ position: 'fixed', inset: 0, zIndex: 99999, backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
           onClick={() => setShowModal(false)}
         >
           <div style={{ width: '100%', maxWidth: 440 }} onClick={e => e.stopPropagation()}>
-            <div style={modalBoxSt}>
+            <div style={{ ...modalBoxSt, maxHeight: '90vh', overflowY: 'auto' }}>
               <p style={{ fontSize: 16, fontWeight: 500, marginBottom: 16, color: 'var(--color-text-primary)' }}>
                 Editar tenant — {editando.usuarioAdminNome}
               </p>
@@ -392,6 +462,8 @@ function AdminTenants() {
                 </div>
               </div>
               {erro && <p style={{ fontSize: 12, color: '#A32D2D', marginTop: 10 }}>{erro}</p>}
+
+              {/* Botões salvar/cancelar */}
               <div style={{ display: 'flex', gap: 8, marginTop: 16, paddingTop: 16, borderTop: '0.5px solid var(--color-border-tertiary)' }}>
                 <button onClick={() => setShowModal(false)} style={{ flex: 1, background: 'transparent', border: '0.5px solid var(--color-border-secondary)', borderRadius: 8, padding: 8, fontSize: 13, color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
                   Cancelar
@@ -400,11 +472,60 @@ function AdminTenants() {
                   {salvando ? 'Salvando...' : 'Salvar alterações'}
                 </button>
               </div>
+
+              {/* ── Zona de exclusão ── */}
+              {!showConfirmDelete ? (
+                <div style={{ marginTop: 12 }}>
+                  <button
+                    onClick={() => { setShowConfirmDelete(true); setConfirmNome('') }}
+                    style={{ width: '100%', background: 'transparent', border: '0.5px solid #FECACA', borderRadius: 8, padding: '7px 12px', fontSize: 12, color: '#A32D2D', cursor: 'pointer' }}
+                  >
+                    Excluir tenant permanentemente
+                  </button>
+                </div>
+              ) : (
+                <div style={{ marginTop: 12, background: '#FEF2F2', border: '0.5px solid #FECACA', borderRadius: 8, padding: 14 }}>
+                  <p style={{ fontSize: 12, fontWeight: 500, color: '#A32D2D', marginBottom: 6 }}>
+                    ⚠️ Esta ação é irreversível. Todos os dados do tenant serão apagados.
+                  </p>
+                  <p style={{ fontSize: 12, color: '#A32D2D', marginBottom: 10 }}>
+                    Digite <strong>{editando?.nome}</strong> para confirmar:
+                  </p>
+                  <input
+                    value={confirmNome}
+                    onChange={e => setConfirmNome(e.target.value)}
+                    placeholder={editando?.nome}
+                    style={{ ...inputSt, marginBottom: 10, borderColor: '#FECACA' }}
+                  />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => { setShowConfirmDelete(false); setConfirmNome('') }}
+                      style={{ flex: 1, background: 'transparent', border: '0.5px solid var(--color-border-secondary)', borderRadius: 8, padding: '7px 0', fontSize: 12, color: 'var(--color-text-secondary)', cursor: 'pointer' }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={excluirTenant}
+                      disabled={confirmNome !== editando?.nome || excluindo}
+                      style={{
+                        flex: 2, border: 'none', borderRadius: 8, padding: '7px 0', fontSize: 12, fontWeight: 500,
+                        cursor: confirmNome === editando?.nome ? 'pointer' : 'not-allowed',
+                        background: confirmNome === editando?.nome ? '#A32D2D' : '#FECACA',
+                        color: '#fff', opacity: excluindo ? 0.7 : 1,
+                      }}
+                    >
+                      {excluindo ? 'Excluindo...' : 'Confirmar exclusão'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         </div>
       )}
 
+      {/* ── Modal novo tenant ── */}
       {showNovo && (
         <div
           style={{ position: 'fixed', inset: 0, zIndex: 99999, backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
@@ -456,6 +577,89 @@ function AdminTenants() {
                   {salvando ? 'Criando...' : 'Criar tenant'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal usuários do tenant ── */}
+      {showUsuarios && tenantUsuarios && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 99999, backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+          onClick={() => setShowUsuarios(false)}
+        >
+          <div style={{ width: '100%', maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+            <div style={{ ...modalBoxSt, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                <div>
+                  <p style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                    Usuários — {tenantUsuarios.nome}
+                  </p>
+                  <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                    {usuarios.length} {usuarios.length === 1 ? 'usuário cadastrado' : 'usuários cadastrados'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowUsuarios(false)}
+                  style={{ background: 'none', border: '0.5px solid var(--color-border-secondary)', borderRadius: 6, width: 28, height: 28, cursor: 'pointer', color: 'var(--color-text-secondary)', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >×</button>
+              </div>
+
+              {/* Lista */}
+              <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {loadingUsuarios ? (
+                  <p style={{ fontSize: 13, color: 'var(--color-text-tertiary)', textAlign: 'center', padding: '24px 0' }}>
+                    Carregando...
+                  </p>
+                ) : usuarios.length === 0 ? (
+                  <p style={{ fontSize: 13, color: 'var(--color-text-tertiary)', textAlign: 'center', padding: '24px 0' }}>
+                    Nenhum usuário encontrado.
+                  </p>
+                ) : usuarios.map(u => {
+                  const av = avatarColor(u.nome)
+                  const isAdmin = u.role === 'ADMIN'
+                  return (
+                    <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, background: 'var(--color-background-secondary)' }}>
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: av.bg, color: av.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 500, flexShrink: 0 }}>
+                        {initials(u.nome)}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>{u.nome}</p>
+                        <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</p>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 999, background: isAdmin ? '#EEEDFE' : '#EAF3DE', color: isAdmin ? '#3C3489' : '#27500A', flexShrink: 0 }}>
+                        {isAdmin ? 'Admin' : 'Produtor'}
+                      </span>
+                      <button
+                        onClick={() => !isAdmin && removerUsuario(u.id)}
+                        disabled={removendo === u.id || isAdmin}
+                        style={{
+                          fontSize: 12, padding: '4px 10px', borderRadius: 6,
+                          cursor: isAdmin ? 'not-allowed' : 'pointer',
+                          border: '0.5px solid',
+                          background: isAdmin ? 'transparent' : '#FEF2F2',
+                          borderColor: isAdmin ? 'var(--color-border-secondary)' : '#FECACA',
+                          color: isAdmin ? 'var(--color-text-tertiary)' : '#A32D2D',
+                          opacity: removendo === u.id ? 0.6 : 1,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {removendo === u.id ? '...' : isAdmin ? '—' : 'Remover'}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Aviso */}
+              <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 8, background: '#FAEEDA', border: '0.5px solid #F0C98A' }}>
+                <p style={{ fontSize: 12, color: '#633806' }}>
+                  ⚠️ Ao remover um usuário todos os seus dados serão deletados permanentemente.
+                </p>
+              </div>
+
             </div>
           </div>
         </div>

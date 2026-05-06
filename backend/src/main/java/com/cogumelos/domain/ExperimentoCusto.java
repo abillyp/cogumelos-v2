@@ -29,7 +29,8 @@ public class ExperimentoCusto extends TenantEntity{
     private String id;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "experimento_id", nullable = false)
+    @JoinColumn(name = "experimento_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_experimento_custos_experimento"))
     private Experimento experimento;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)

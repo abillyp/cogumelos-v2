@@ -50,9 +50,9 @@ public class Usuario {
     @Column(name = "criado_em", nullable = false)
     private LocalDate criadoEm = LocalDate.now();
 
-
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tenant_id", nullable = false)
+    @JoinColumn(name = "tenant_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_usuarios_tenant"))
     private Tenant tenant;
 
     public boolean isAdmin() { return role == Role.ADMIN; }

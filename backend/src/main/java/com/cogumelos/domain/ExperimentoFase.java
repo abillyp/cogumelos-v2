@@ -21,7 +21,8 @@ public class ExperimentoFase{
     private Long id;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "experimento_id", nullable = false)
+    @JoinColumn(name = "experimento_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_experimento_fase_experimento"))
     private Experimento experimento;
 
     @Enumerated(EnumType.STRING)

@@ -44,7 +44,8 @@ public class FormulacaoInsumo extends TenantEntity implements Persistable<String
     }
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "formulacao_id", nullable = false)
+    @JoinColumn(name = "formulacao_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_formulacao_insumos_formulacao"))
     private Formulacao formulacao;
 
     @ManyToOne(optional = false)

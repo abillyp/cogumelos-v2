@@ -30,9 +30,9 @@ public class Colheita extends TenantEntity{
     @Id
     private String id;
 
-    @NotNull
     @ManyToOne(optional = false)
-    @JoinColumn(name = "experimento_id", nullable = false)
+    @JoinColumn(name = "experimento_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_colheitas_experimento"))
     private Experimento experimento;
 
     @NotNull

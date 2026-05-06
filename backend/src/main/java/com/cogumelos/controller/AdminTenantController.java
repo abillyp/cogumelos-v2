@@ -3,15 +3,16 @@ package com.cogumelos.controller;
 import com.cogumelos.dto.tenant.AtualizarTenantRequest;
 import com.cogumelos.dto.tenant.TenantAdminResponse;
 import com.cogumelos.dto.tenant.CriarTenantRequest;
-import com.cogumelos.repository.ExperimentoRepository;
-import com.cogumelos.repository.TenantRepository;
-import com.cogumelos.repository.UsuarioRepository;
+import com.cogumelos.dto.usuario.UsuarioResponse;
+import com.cogumelos.security.TenantContext;
 import com.cogumelos.service.TenantService;
+import com.cogumelos.service.UsuarioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,21 +22,12 @@ import java.util.List;
 @Tag(name = "Admin — Tenants", description = "Gestão de tenants pelo administrador global. Requer role ADMIN.")
 public class AdminTenantController {
 
-    private final TenantRepository    tenantRepo;
     private final TenantService       tenantService;
-    private final UsuarioRepository   usuarioRepo;
-    private final ExperimentoRepository experimentoRepo;
-    private final BCryptPasswordEncoder encoder;
+    private final UsuarioService      usuarioService;
 
-    public AdminTenantController(TenantRepository tenantRepo, TenantService tenantService,
-                                 UsuarioRepository usuarioRepo,
-                                 ExperimentoRepository experimentoRepo,
-                                 BCryptPasswordEncoder encoder) {
-        this.tenantRepo      = tenantRepo;
+    public AdminTenantController(TenantService tenantService, UsuarioService usuarioService) {
         this.tenantService = tenantService;
-        this.usuarioRepo     = usuarioRepo;
-        this.experimentoRepo = experimentoRepo;
-        this.encoder         = encoder;
+        this.usuarioService = usuarioService;
     }
 
 
@@ -78,9 +70,25 @@ public class AdminTenantController {
         return tenantService.resumo();
     }
 
-//    @Operation(summary = "Lista todos os usuários de um tenant")
-//    @GetMapping("{tenantId}/usuarios")
-//    public java.util.Collection<Usuario> usuarios(@PathVariable("tenantId") String tenantId) {
-//
-//    }
+    @Operation(summary = "Lista todos os usuários de um tenant")
+    @GetMapping("{tenantId}/usuarios")
+    public List<UsuarioResponse> usuarios(@PathVariable("tenantId") String tenantId) {
+            return tenantService.listar(Long.valueOf(tenantId));
+    }
+
+
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    @DeleteMapping("/{tenantId}/usuarios/{usuarioId}")
+    public ResponseEntity<Void> deletar(@PathVariable("tenantId")  String tenantId, @PathVariable("usuarioId") String usuarioId) {
+        usuarioService.deletarUsuario(usuarioId, Long.valueOf(tenantId));
+        return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    @DeleteMapping("/{tenantId}")
+    public ResponseEntity<Void> deletar(@PathVariable("tenantId")  Long tenantId) {
+        tenantService.excluirTenant(tenantId);
+        return ResponseEntity.noContent().build();
+    }
+
 }

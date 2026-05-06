@@ -67,13 +67,14 @@ public class UsuarioService {
         return authService.buildLoginResponse(u, refreshDays);
     }
 
-    public void deletar(String id, Long tenantId) {
+    @Transactional
+    public void deletarUsuario(String idUsuario, Long tenantId) {
         // ✅ confirma que pertence ao tenant antes de deletar
-        usuarioRepository.findByIdAndTenantId(id, tenantId)
+        usuarioRepository.findByIdAndTenantId(idUsuario, tenantId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Usuário não encontrado"));
 
-        usuarioRepository.deleteById(id);
+        usuarioRepository.deleteById(idUsuario);
     }
 
     public UsuarioResponse criar(RegistroRequest req, Role role) {

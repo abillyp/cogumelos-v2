@@ -43,13 +43,13 @@ public class Experimento extends TenantEntity implements org.springframework.dat
     @PostPersist
     void markNotNew() { this.novo = false; }
 
-    @NotNull
-    @ManyToOne(optional = false, fetch = FetchType.LAZY) // LAZY aqui
-    @JoinColumn(name = "usuario_id", nullable = false)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "usuario_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_experimentos_usuario"))
     private Usuario usuario;
 
     @NotNull
-    @ManyToOne(optional = false, fetch = FetchType.LAZY) // LAZY aqui
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "formulacao_id", nullable = false)
     private Formulacao formulacao;
 

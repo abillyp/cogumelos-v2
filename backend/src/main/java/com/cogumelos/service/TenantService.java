@@ -125,6 +125,7 @@ public class TenantService {
         }
     }
 
+    @Transactional
     public TenantAdminResponse criar(CriarTenantRequest req) {
         if (tenantRepo.existsByEmail(req.email()))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email do tenant já cadastrado");
@@ -233,4 +234,12 @@ public class TenantService {
         );
     }
 
+    @Transactional
+    public void excluirTenant(Long tenantId) {
+        long totalUsuarios = usuarioRepository.countByTenantId(tenantId);
+        if (totalUsuarios > 0)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Não é possível excluir um tenant com usuários ativos. Remova todos os usuários antes de excluir.");
+        tenantRepo.deleteById(tenantId);
+    }
 }
