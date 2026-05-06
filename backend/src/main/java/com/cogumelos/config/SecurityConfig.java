@@ -67,10 +67,10 @@ public class SecurityConfig {
                                 "/api/auth/redefinir-senha",
                                 "/v3/api-docs"
                         ).permitAll()
-                        .requestMatchers("/api/insumos/**", "/api/especies/**").authenticated()
                         .requestMatchers(HttpMethod.POST,   "/api/insumos/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT,    "/api/insumos/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/insumos/**").hasRole("ADMIN")
+                        .requestMatchers("/api/insumos/**", "/api/especies/**").authenticated()
                         .requestMatchers("/api/admin/tenants/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
@@ -126,6 +126,7 @@ public class SecurityConfig {
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
         cfg.setAllowCredentials(true);
+        cfg.setExposedHeaders(List.of("Set-Cookie"));
 
         UrlBasedCorsConfigurationSource src = new UrlBasedCorsConfigurationSource();
         src.registerCorsConfiguration("/**", cfg);

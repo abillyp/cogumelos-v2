@@ -8,6 +8,7 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
+
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
@@ -49,7 +50,7 @@ server:
 jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:900000}
-  refresh-expiration-days: ${JWT_REFRESH_DAYS:30}
+  refresh-expiration-hours: ${JWT_REFRESH_HOURS:8}
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
@@ -75,3 +76,6 @@ springdoc:
     tryItOutEnabled: true
     filter: true
   show-actuator: false
+
+cookie:
+  secure: true

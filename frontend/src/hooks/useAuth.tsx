@@ -11,7 +11,7 @@ import { saveTokens, clearTokens } from '@/lib/api'
 interface AuthCtx {
   user: AuthUser | null
   loading: boolean
-  login: (token: string, refreshToken: string, user: AuthUser) => void
+  login: (token: string, user: AuthUser) => void  // ✅ removido refreshToken
   logout: () => Promise<void>
   isAdmin: boolean
 }
@@ -33,21 +33,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false)
   }, [])
 
-  function login(token: string, refreshToken: string, u: AuthUser) {
-    saveTokens(token, refreshToken)
+  function login(token: string, u: AuthUser) {
+    saveTokens(token) // ✅ refreshToken não passa mais aqui — está no HttpOnly cookie
     localStorage.setItem('user', JSON.stringify(u))
     setUser(u)
   }
 
   async function logout() {
-    const rt = localStorage.getItem('refreshToken')
-    if (rt) {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: rt }),
-      }).catch(() => {})
-    }
+    // ✅ não lê refreshToken do localStorage — envia cookie automaticamente via credentials: include
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', // ✅ envia o HttpOnly cookie para o backend invalidar
+    }).catch(() => {})
     clearTokens()
     setUser(null)
     window.location.href = '/login'

@@ -40,7 +40,7 @@ server:
 jwt:
   secret: cogumelos-secret-key-minimo-32-caracteres-seguro
   expiration: 10000
-  refresh-expiration-days: 30
+  refresh-expiration-hours: 8
 
 security:
   oauth2:
@@ -86,3 +86,6 @@ springdoc:
     tryItOutEnabled: true
     filter: true
   show-actuator: false
+
+cookie:
+  secure: false

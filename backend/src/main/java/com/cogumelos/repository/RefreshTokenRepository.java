@@ -31,4 +31,6 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Stri
     @Modifying
     @Query("DELETE FROM RefreshToken r WHERE r.usado = true") // ✅ PostgreSQL
     void deleteUsados();
+
+    void deleteAllByUsuarioId(String id);
 }
