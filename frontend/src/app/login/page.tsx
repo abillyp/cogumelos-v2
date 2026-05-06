@@ -1,3 +1,8 @@
+// Copyright (c) 2026 Alessandro Billy Palma — cogumelos.app
+// Todos os direitos reservados.
+// Uso não autorizado é expressamente proibido. Ver arquivo LICENSE.
+// Contato: alessandro.billy@organico4you.com.br
+
 'use client'
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
