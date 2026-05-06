@@ -59,7 +59,7 @@ class AuthControllerIntegrationTest {
     void setUp() {
         tenant = new Tenant();
         tenant.setNome("Tenant Teste");
-        tenant.setEmail("teste@cogumelos.com");
+        tenant.setEmail("alessandro.billy@organico4you.com.brs.com");
         tenant.setPlano(PlanoType.TRIAL);
         tenant.setTrialExpira(LocalDate.now().plusDays(14));
         tenantRepo.save(tenant);
