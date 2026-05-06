@@ -10,20 +10,15 @@ function getToken(): string | null {
   return localStorage.getItem('token')
 }
 
-function getRefreshToken(): string | null {
-  if (typeof window === 'undefined') return null
-  return localStorage.getItem('refreshToken')
-}
-
-export function saveTokens(token: string, refreshToken: string) {
+export function saveTokens(token: string) {
   localStorage.setItem('token', token)
-  localStorage.setItem('refreshToken', refreshToken)
+  // ✅ refreshToken não é mais salvo — está em HttpOnly cookie gerenciado pelo browser
 }
 
 export function clearTokens() {
   localStorage.removeItem('token')
-  localStorage.removeItem('refreshToken')
   localStorage.removeItem('user')
+  // ✅ refreshToken é limpo pelo backend via Set-Cookie maxAge=0 no /logout
 }
 
 let refreshando = false
@@ -35,16 +30,14 @@ async function renovarToken(): Promise<string> {
   }
   refreshando = true
   try {
-    const rt = getRefreshToken()
-    if (!rt) throw new Error('Sem refresh token')
     const res = await fetch(`${BASE}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken: rt }),
+      credentials: 'include', // ✅ envia HttpOnly cookie automaticamente
     })
     if (!res.ok) throw new Error('Refresh falhou')
     const data = await res.json()
-    saveTokens(data.token, data.refreshToken)
+    saveTokens(data.token)
     filaRefresh.forEach(cb => cb(data.token))
     filaRefresh = []
     return data.token
@@ -64,14 +57,16 @@ async function req<T>(path: string, options?: RequestInit, retry = true): Promis
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
+    credentials: 'include', // ✅ envia cookies em todas as requisições
     ...options,
   })
-  // Trial expirado, assinatura cancelada ou expirada
+
   if (res.status === 402) {
     clearTokens()
     if (typeof window !== 'undefined') window.location.href = '/plano-expirado?tipo=trial_expirado'
     throw new Error('Período de trial encerrado')
   }
+
   if (res.status === 403) {
     const err403 = await res.json().catch(() => ({ erro: '' })) as { erro: string }
     if (err403.erro?.toLowerCase().includes('cancelada')) {
@@ -90,22 +85,39 @@ async function req<T>(path: string, options?: RequestInit, retry = true): Promis
       }, false)
     } catch { throw new Error('Sessão expirada') }
   }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ erro: 'Erro desconhecido' }))
     throw new Error(err.erro || 'Erro na requisição')
   }
+
   if (res.status === 204) return undefined as T
   return res.json()
 }
 
 export const api = {
   auth: {
-    login:    (body: unknown) => req('/auth/login',    { method: 'POST', body: JSON.stringify(body) }),
-    registro: (body: unknown) => req('/auth/registro', { method: 'POST', body: JSON.stringify(body) }),
-    logout:   (refreshToken: string) => fetch(`${BASE}/auth/logout`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
+    login: (body: unknown) => req<any>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(body),
+      credentials: 'include',
+    }).then(data => {
+      if (data?.token) saveTokens(data.token)
+      return data
     }),
+    registro: (body: unknown) => req<any>('/auth/registro', {
+      method: 'POST',
+      body: JSON.stringify(body),
+      credentials: 'include',
+    }).then(data => {
+      if (data?.token) saveTokens(data.token)
+      return data
+    }),
+    logout: () => fetch(`${BASE}/auth/logout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+    }).then(() => clearTokens()),
     me: () => req('/auth/me'),
     esqueciSenha:   (email: string) => req('/auth/esqueci-senha', { method: 'POST', body: JSON.stringify({ email }) }),
     redefinirSenha: (token: string, novaSenha: string) => req('/auth/redefinir-senha', { method: 'POST', body: JSON.stringify({ token, novaSenha }) }),
@@ -120,15 +132,15 @@ export const api = {
       deletar:   (id: string)                 => req(`/admin/usuarios/${id}`, { method: 'DELETE' }),
     },
     tenants: {
-      listar:         ()                                            => req('/admin/tenants'),
-      resumo:         ()                                            => req('/admin/tenants/resumo'),
-      buscar:         (id: number)                                  => req(`/admin/tenants/${id}`),
-      atualizar:      (id: number, body: unknown)                   => req(`/admin/tenants/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
-      criar:          (body: unknown)                               => req('/admin/tenants', { method: 'POST', body: JSON.stringify(body) }),
-      estenderTrial:  (id: number, dias: number)                    => req(`/admin/tenants/${id}/estender-trial`, { method: 'POST', body: JSON.stringify({ dias }) }),
-      deletar:        (id: number)                                  => req(`/admin/tenants/${id}`, { method: 'DELETE' }),
-      listarUsuarios: (id: number)                                  => req(`/admin/tenants/${id}/usuarios`),
-      removerUsuario: (tenantId: number, usuarioId: string)         => req(`/admin/tenants/${tenantId}/usuarios/${usuarioId}`, { method: 'DELETE' }),
+      listar:         ()                                    => req('/admin/tenants'),
+      resumo:         ()                                    => req('/admin/tenants/resumo'),
+      buscar:         (id: number)                          => req(`/admin/tenants/${id}`),
+      atualizar:      (id: number, body: unknown)           => req(`/admin/tenants/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+      criar:          (body: unknown)                       => req('/admin/tenants', { method: 'POST', body: JSON.stringify(body) }),
+      estenderTrial:  (id: number, dias: number)            => req(`/admin/tenants/${id}/estender-trial`, { method: 'POST', body: JSON.stringify({ dias }) }),
+      deletar:        (id: number)                          => req(`/admin/tenants/${id}`, { method: 'DELETE' }),
+      listarUsuarios: (id: number)                          => req(`/admin/tenants/${id}/usuarios`),
+      removerUsuario: (tenantId: number, usuarioId: string) => req(`/admin/tenants/${tenantId}/usuarios/${usuarioId}`, { method: 'DELETE' }),
     },
   },
 
