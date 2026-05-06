@@ -9,16 +9,17 @@ import { saveTokens, clearTokens } from '@/lib/api'
 describe('api — saveTokens / clearTokens', () => {
   beforeEach(() => localStorage.clear())
 
-  it('saveTokens deve persistir token e refreshToken no localStorage', () => {
-    saveTokens('access-123', 'refresh-456')
+  it('saveTokens deve persistir apenas o token de acesso no localStorage', () => {
+    // ✅ refreshToken não vai mais para o localStorage — está no HttpOnly cookie
+    saveTokens('access-123')
     expect(localStorage.getItem('token')).toBe('access-123')
-    expect(localStorage.getItem('refreshToken')).toBe('refresh-456')
+    expect(localStorage.getItem('refreshToken')).toBeNull()
   })
 
-  it('clearTokens deve remover todos os dados de autenticação', () => {
+  it('clearTokens deve remover token e user do localStorage', () => {
     localStorage.setItem('token', 'abc')
-    localStorage.setItem('refreshToken', 'def')
     localStorage.setItem('user', JSON.stringify({ id: '1' }))
+    // ✅ refreshToken não está mais no localStorage — não precisa verificar
 
     clearTokens()
 
@@ -35,7 +36,8 @@ describe('api — requisições HTTP', () => {
   })
 
   it('deve adicionar Authorization header quando token existe', async () => {
-    saveTokens('meu-token', 'refresh')
+    // ✅ saveTokens agora recebe só o token de acesso
+    saveTokens('meu-token')
 
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -58,13 +60,14 @@ describe('api — requisições HTTP', () => {
   })
 
   it('deve tentar renovar token ao receber 401', async () => {
-    saveTokens('token-expirado', 'refresh-valido')
+    // ✅ saveTokens agora recebe só o token de acesso
+    saveTokens('token-expirado')
 
     const mockFetch = vi.fn()
       .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({}) })   // 401 na primeira
-      .mockResolvedValueOnce({                                                       // renovação
+      .mockResolvedValueOnce({                                                       // renovação via cookie
         ok: true, status: 200,
-        json: async () => ({ token: 'novo-token', refreshToken: 'novo-refresh' }),
+        json: async () => ({ token: 'novo-token' }), // ✅ refreshToken não vem mais no body
       })
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => [] })       // retry
 
@@ -72,7 +75,7 @@ describe('api — requisições HTTP', () => {
     vi.resetModules()
 
     const { api, saveTokens: st } = await import('@/lib/api')
-    st('token-expirado', 'refresh-valido')
+    st('token-expirado') // ✅ só token de acesso
 
     await api.experimentos.listar()
     expect(mockFetch).toHaveBeenCalledTimes(3)
