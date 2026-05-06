@@ -50,7 +50,6 @@ describe('LoginPage', () => {
 
   it('deve alternar para aba de registro ao clicar em Criar conta', async () => {
     render(<LoginPage />)
-    // clica na aba (primeiro elemento com o texto)
     const abas = screen.getAllByText('Criar conta')
     await userEvent.click(abas[0])
     expect(screen.getByPlaceholderText('Seu nome completo')).toBeInTheDocument()
@@ -58,8 +57,9 @@ describe('LoginPage', () => {
   })
 
   it('deve chamar api.auth.login com credenciais corretas', async () => {
+    // ✅ refreshToken removido do retorno — agora vem via HttpOnly cookie
     vi.mocked(api.auth.login).mockResolvedValue({
-      token: 'token-123', refreshToken: 'refresh-123',
+      token: 'token-123',
       id: 'user-1', nome: 'Billy', email: 'billy@test.com', role: 'ADMIN_TENANT',
     } as any)
 
@@ -67,8 +67,6 @@ describe('LoginPage', () => {
 
     await userEvent.type(screen.getByPlaceholderText('seu@email.com'), 'billy@test.com')
     await userEvent.type(screen.getByPlaceholderText('••••••••'), 'senha123')
-
-    // botão submit de login — único botão com type="submit" visível na aba login
     await userEvent.click(screen.getAllByRole('button').find(b => b.getAttribute('type') === 'submit')!)
 
     await waitFor(() => {
@@ -80,8 +78,9 @@ describe('LoginPage', () => {
   })
 
   it('deve chamar login() do contexto após autenticação bem-sucedida', async () => {
+    // ✅ refreshToken removido do retorno — agora vem via HttpOnly cookie
     const userData = {
-      token: 'token-123', refreshToken: 'refresh-123',
+      token: 'token-123',
       id: 'user-1', nome: 'Billy', email: 'billy@test.com', role: 'ADMIN_TENANT',
     }
     vi.mocked(api.auth.login).mockResolvedValue(userData as any)
@@ -92,8 +91,9 @@ describe('LoginPage', () => {
     await userEvent.click(screen.getAllByRole('button').find(b => b.getAttribute('type') === 'submit')!)
 
     await waitFor(() => {
+      // ✅ assinatura nova: login(token, user) — sem refreshToken
       expect(mockLogin).toHaveBeenCalledWith(
-        'token-123', 'refresh-123',
+        'token-123',
         expect.objectContaining({ email: 'billy@test.com' })
       )
       expect(mockPush).toHaveBeenCalledWith('/')
@@ -120,14 +120,14 @@ describe('LoginPage', () => {
   })
 
   it('deve registrar novo usuário com todos os campos', async () => {
+    // ✅ refreshToken removido do retorno — agora vem via HttpOnly cookie
     vi.mocked(api.auth.registro).mockResolvedValue({
-      token: 'token-novo', refreshToken: 'refresh-novo',
+      token: 'token-novo',
       id: 'user-novo', nome: 'Novo', email: 'novo@test.com', role: 'ADMIN_TENANT',
     } as any)
 
     render(<LoginPage />)
 
-    // clica na aba Criar conta
     const abas = screen.getAllByText('Criar conta')
     await userEvent.click(abas[0])
 
@@ -136,7 +136,6 @@ describe('LoginPage', () => {
     await userEvent.type(screen.getByPlaceholderText('seu@email.com'), 'novo@test.com')
     await userEvent.type(screen.getByPlaceholderText('Mínimo 6 caracteres'), 'senha123')
 
-    // botão submit — pega o último "Criar conta" que é o botão do form
     const botoes = screen.getAllByText('Criar conta')
     await userEvent.click(botoes[botoes.length - 1])
 
