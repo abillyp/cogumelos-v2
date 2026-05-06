@@ -27,6 +27,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.servlet.http.Cookie;
+
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
@@ -85,7 +87,7 @@ class AuthControllerIntegrationTest {
                 ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").isNotEmpty())
-                .andExpect(jsonPath("$.refreshToken").isNotEmpty())
+                .andExpect(cookie().exists("refreshToken"))
                 .andExpect(jsonPath("$.email").value("billy@test.com"))
                 .andExpect(jsonPath("$.role").value("ADMIN_TENANT"));
     }
@@ -168,31 +170,27 @@ class AuthControllerIntegrationTest {
     @Test
     @DisplayName("POST /api/auth/refresh — token válido deve retornar novos tokens")
     void refresh_tokenValido_deveRetornarNovosTokens() throws Exception {
-        // primeiro faz login para obter refresh token
-        String loginResponse = mockMvc.perform(post("/api/auth/login")
+        // primeiro faz login para obter refresh token no cookie
+        Cookie refreshCookie = mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(Map.of(
                         "email", "billy@test.com",
                         "senha", "senha123"
                 ))))
-                .andReturn().getResponse().getContentAsString();
-
-        String refreshToken = mapper.readTree(loginResponse).get("refreshToken").asText();
+                .andReturn().getResponse().getCookie("refreshToken");
 
         mockMvc.perform(post("/api/auth/refresh")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(Map.of("refreshToken", refreshToken))))
+                .cookie(refreshCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").isNotEmpty())
-                .andExpect(jsonPath("$.refreshToken").isNotEmpty());
+                .andExpect(cookie().exists("refreshToken"));
     }
 
     @Test
     @DisplayName("POST /api/auth/refresh — token inválido deve retornar 400")
     void refresh_tokenInvalido_deveRetornar400() throws Exception {
         mockMvc.perform(post("/api/auth/refresh")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(Map.of("refreshToken", "token-falso"))))
+                .cookie(new Cookie("refreshToken", "token-falso")))
                 .andExpect(status().isBadRequest());
     }
 
