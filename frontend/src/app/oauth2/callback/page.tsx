@@ -17,10 +17,9 @@ function CallbackHandler() {
   const [erro, setErro] = useState('')
 
   useEffect(() => {
-    const token        = params.get('token')
-    const refreshToken = params.get('refreshToken')
-    const loginType    = params.get('loginType') ?? 'GOOGLE'
-    const erroParam    = params.get('erro')
+    const token     = params.get('token')
+    const loginType = params.get('loginType') ?? 'GOOGLE'
+    const erroParam = params.get('erro')
 
     if (erroParam) {
       const msgs: Record<string, string> = {
@@ -32,17 +31,19 @@ function CallbackHandler() {
       return
     }
 
-    if (!token || !refreshToken) {
+    if (!token) {
       setErro('Token não recebido. Tente novamente.')
       setTimeout(() => router.replace('/login'), 3000)
       return
     }
 
-    saveTokens(token, refreshToken)
+    // ✅ refreshToken não vem mais pela URL — está no HttpOnly cookie setado pelo backend
+    saveTokens(token)
 
     api.auth.me()
       .then((data: any) => {
-        login(token, refreshToken, {
+        // ✅ assinatura nova: login(token, user) — sem refreshToken
+        login(token, {
           id: data.id, nome: data.nome, email: data.email, role: data.role,
           loginType: loginType as 'GOOGLE' | 'EMAIL',
         } as AuthUser)

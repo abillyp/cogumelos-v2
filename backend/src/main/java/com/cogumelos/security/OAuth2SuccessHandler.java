@@ -21,6 +21,8 @@ import com.cogumelos.service.TenantService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -28,6 +30,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -44,8 +47,11 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     @Value("${app.frontend-url:http://localhost:3000}")
     private String frontendUrl;
 
-    @Value("${jwt.refresh-expiration-days:30}")
+    @Value("${jwt.refresh-expiration-days:1}")
     private int refreshDays;
+
+    @Value("${cookie.secure:true}")
+    private boolean cookieSecure;
 
     public OAuth2SuccessHandler(UsuarioRepository usuarioRepo,
                                 TenantRepository tenantRepo,
@@ -57,7 +63,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         this.refreshRepo   = refreshRepo;
         this.jwtService    = jwtService;
         this.tenantService = tenantService;
-        System.out.println("=== frontendUrl:  ==="+frontendUrl);
     }
 
     @Override
@@ -85,7 +90,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         refreshRepo.deleteByUsuarioId(usuario.getId());
 
-        String accessToken = jwtService.gerar(
+        String accessToken  = jwtService.gerar(
                 usuario.getId(), usuario.getEmail(), usuario.getRole().name(),
                 usuario.getTenant().getId(),
                 usuario.getTenant().getPlano().name(),
@@ -93,14 +98,23 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         );
         String refreshToken = criarRefreshToken(usuario);
 
+        // ✅ seta o refreshToken como HttpOnly cookie — não expõe na URL
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .path("/api/auth")
+                .maxAge(Duration.ofDays(refreshDays))
+                .sameSite("Lax") // ✅ Lax em vez de Strict para funcionar após redirect OAuth2
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+
+        // ✅ refreshToken removido da URL
         response.sendRedirect(frontendUrl + "/oauth2/callback"
                 + "?token=" + accessToken
-                + "&refreshToken=" + refreshToken
                 + "&loginType=GOOGLE");
     }
 
     private Usuario criarUsuario(String email, String nome) {
-        System.out.println("=== criarUsuario chamado para email: ==="+ email);
         Tenant tenant = new Tenant();
         tenant.setNome(nome != null ? nome : email);
         tenant.setEmail(email);
@@ -108,9 +122,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         tenant.setStatus(StatusTenant.TRIAL);
         tenant.setTrialExpira(LocalDate.now().plusDays(14));
         tenantRepo.save(tenant);
-        System.out.println("=== tenant salvo");
         tenantService.inicializarTenant(tenant);
-        System.out.println("=== tenant salvo2");
+
         Usuario u = new Usuario();
         u.setId(UUID.randomUUID().toString());
         u.setNome(nome != null ? nome : email);
