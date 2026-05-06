@@ -37,18 +37,17 @@ public class FormulacaoService {
     private final InsumoRepository insumoRepo;
     private final UsuarioRepository usuarioRepo;
     private final ExperimentoRepository experimentoRepository;
-    private final jakarta.persistence.EntityManager em;
 
     public FormulacaoService(FormulacaoRepository repo,
                              EspecieCogumeloRepository especieRepo,
                              InsumoRepository insumoRepo,
-                             UsuarioRepository usuarioRepo, ExperimentoRepository experimentoRepository, jakarta.persistence.EntityManager em) {
+                             UsuarioRepository usuarioRepo,
+                             ExperimentoRepository experimentoRepository) {
         this.repo        = repo;
         this.especieRepo = especieRepo;
         this.insumoRepo  = insumoRepo;
         this.usuarioRepo = usuarioRepo;
         this.experimentoRepository = experimentoRepository;
-        this.em = em;
     }
 
     private Long tenantId() {
@@ -107,12 +106,12 @@ public class FormulacaoService {
             fi.setInsumo(insumo);
             fi.setPesoRealKg(item.pesoRealKg());
             fi.setUmidadePct(item.umidadePct());
+            fi.calcular();
             f.getInsumos().add(fi);
         }
 
         f.recalcular();
-        em.persist(f);
-        em.flush();
+        repo.save(f);
         return FormulacaoResponse.from(f);
     }
 
@@ -167,6 +166,7 @@ public class FormulacaoService {
             fi.setInsumo(insumo);
             fi.setPesoRealKg(item.pesoRealKg());
             fi.setUmidadePct(item.umidadePct());
+            fi.calcular();
             f.getInsumos().add(fi);
         }
 

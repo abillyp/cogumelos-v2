@@ -32,6 +32,8 @@ import static org.mockito.Mockito.*;
 class ExperimentoServiceTest {
 
     @Mock ExperimentoRepository repo;
+    @Mock ExperimentoFaseRepository faseRepo;
+    @Mock ExperimentoCustoRepository custoRepo;
     @Mock FormulacaoRepository formulacaoRepo;
     @Mock UsuarioRepository usuarioRepo;
     @Mock LoteMonitoramentoRepository monitoramentoRepo;
@@ -70,6 +72,7 @@ class ExperimentoServiceTest {
         e.setTenantId(tenantId);
         e.setFaseAtual(Fase.PREPARACAO);
         e.setTotalBlocos(10);
+        e.setTotalBlocosPerdidos(0);
         e.setUsuario(u);
         e.setFormulacao(f);
 

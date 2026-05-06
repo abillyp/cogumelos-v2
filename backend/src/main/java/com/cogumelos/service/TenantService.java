@@ -26,6 +26,7 @@ import com.cogumelos.repository.ExperimentoRepository;
 import com.cogumelos.repository.InsumoRepository;
 import com.cogumelos.repository.TenantRepository;
 import com.cogumelos.repository.UsuarioRepository;
+import com.cogumelos.security.TenantContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -36,6 +37,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -100,7 +102,7 @@ public class TenantService {
     }
 
     @Transactional
-    public ResponseEntity<?> registro(RegistroRequest req, int refreshDays) {
+    public Map<String, Object> registro(RegistroRequest req, int refreshDays) {
         if (usuarioRepository.existsByEmail(req.email()))
             throw new RuntimeException("Email já cadastrado");
         try {
@@ -115,10 +117,12 @@ public class TenantService {
 
             // Copia insumos do catálogo padrão
             inicializarTenant(tenant);
+            TenantContext.setTenantId(tenant.getId());
             UsuarioResponse usuarioResponse = usuarioService.criar(req, Role.ADMIN_TENANT);
-            Usuario usuario = UsuarioResponse.to(usuarioResponse);
+            Usuario usuario = usuarioRepository.findById(usuarioResponse.id())
+                    .orElseThrow(() -> new RuntimeException("Erro ao criar usuário"));
 
-            return ResponseEntity.status(201).body(authService.buildLoginResponse(usuario, refreshDays ));
+            return authService.buildLoginResponse(usuario, refreshDays);
         } catch (Exception e) {
             log.error("Erro no registro: {}", e.getMessage(), e);
             throw e;

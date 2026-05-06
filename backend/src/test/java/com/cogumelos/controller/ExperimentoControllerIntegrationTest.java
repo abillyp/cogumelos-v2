@@ -75,7 +75,7 @@ class ExperimentoControllerIntegrationTest {
         usuario.setSenhaHash(encoder.encode("senha123"));
         usuario.setRole(Role.ADMIN_TENANT);
         usuario.setTenant(tenant);
-        usuarioRepo.save(usuario);
+        usuario = usuarioRepo.save(usuario);
 
         token = "Bearer " + jwtService.gerar(
                 usuario.getId(), usuario.getEmail(),
@@ -88,7 +88,7 @@ class ExperimentoControllerIntegrationTest {
         especie.setNome("Pleurotus ostreatus");
         especie.setCnMin(25.0);
         especie.setCnMax(40.0);
-        especieRepo.save(especie);
+        especie = especieRepo.save(especie);
 
         // Insumo do tenant
         Insumo insumo = new Insumo();
@@ -99,7 +99,7 @@ class ExperimentoControllerIntegrationTest {
         insumo.setNitrogenioPct(0.001);
         insumo.setTenantId(tenant.getId());
         insumo.calcularCnRatio();
-        insumoRepo.save(insumo);
+        insumo = insumoRepo.save(insumo);
 
         // Formulação
         FormulacaoInsumo fi = new FormulacaoInsumo();
@@ -115,6 +115,9 @@ class ExperimentoControllerIntegrationTest {
         formulacao.setNome("Substrato Padrão");
         formulacao.setEspecie(especie);
         formulacao.setUsuario(usuario);
+        formulacao.setUmidade(65.0);
+        formulacao.setPesoBlocoKg(1.2);
+        formulacao.setTotalBlocos(40);
         formulacao.getInsumos().add(fi);
         fi.setFormulacao(formulacao);
         formulacao.recalcular();

@@ -41,7 +41,7 @@ function LoginContent() {
       : await api.auth.registro({ nome, nomeProdutor, email, senha })
     console.log('=== response', data)
 
-      login(data.token, data.refreshToken, {
+      login(data.token, {
         id: data.id, nome: data.nome, email: data.email, role: data.role,
         loginType: data.loginType,
       } as AuthUser)

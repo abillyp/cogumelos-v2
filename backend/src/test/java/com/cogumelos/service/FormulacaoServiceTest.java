@@ -39,6 +39,7 @@ class FormulacaoServiceTest {
     @Mock EspecieCogumeloRepository    especieRepo;
     @Mock InsumoRepository             insumoRepo;
     @Mock UsuarioRepository            usuarioRepo;
+    @Mock ExperimentoRepository        experimentoRepository;
 
     @InjectMocks FormulacaoService service;
 

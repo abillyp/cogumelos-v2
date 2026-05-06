@@ -21,7 +21,6 @@ import com.cogumelos.enums.Sala;
 import com.cogumelos.enums.Fase;
 import com.cogumelos.repository.*;
 import com.cogumelos.security.TenantContext;
-import jakarta.persistence.EntityManager;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,14 +45,13 @@ public class ExperimentoService {
     private final LoteMonitoramentoRepository monitoramentoRepo;
     private final ColheitaRepository colheitaRepo;
     private final InsumoRepository insumoRepo;
-    private final EntityManager em;
 
     public ExperimentoService(ExperimentoRepository repo, ExperimentoFaseRepository faseRepo, ExperimentoCustoRepository custoRepo,
                               FormulacaoRepository formulacaoRepo,
                               UsuarioRepository usuarioRepo,
                               LoteMonitoramentoRepository monitoramentoRepo,
                               ColheitaRepository colheitaRepo,
-                              InsumoRepository insumoRepo, EntityManager em) {
+                              InsumoRepository insumoRepo) {
         this.repo              = repo;
         this.faseRepo = faseRepo;
         this.custoRepo = custoRepo;
@@ -62,7 +60,6 @@ public class ExperimentoService {
         this.monitoramentoRepo = monitoramentoRepo;
         this.colheitaRepo      = colheitaRepo;
         this.insumoRepo        = insumoRepo;
-        this.em = em;
     }
 
     // ✅ helper central — evita repetir TenantContext.getTenantId() em todo lugar
@@ -127,8 +124,7 @@ public class ExperimentoService {
         e.setTotalBlocos(req.totalBlocos());
         e.setTotalBlocosPerdidos(0);
         e.setPesoBlocoKg(req.pesoBlocoKg());
-        em.persist(e);
-        em.flush();
+        repo.save(e);
 
         ExperimentoFase fase = new ExperimentoFase();
         fase.setInicio(LocalDate.now());
