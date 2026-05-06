@@ -11,6 +11,7 @@
 
 package com.cogumelos.controller;
 
+import com.cogumelos.dto.EspecieResponse;
 import com.cogumelos.service.EspecieService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,7 +30,7 @@ class EspecieController {
     }
 
     @GetMapping
-    public List<Dtos.EspecieResponse> listar() {
+    public List<EspecieResponse> listar() {
         return especieService.listar();
     }
 }

@@ -14,11 +14,13 @@ package com.cogumelos.domain;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "experimento_custos")
-@Data
+@Getter @Setter
 @NoArgsConstructor
 public class ExperimentoCusto extends TenantEntity{
 

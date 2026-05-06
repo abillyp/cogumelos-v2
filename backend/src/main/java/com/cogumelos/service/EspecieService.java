@@ -1,5 +1,6 @@
 package com.cogumelos.service;
 
+import com.cogumelos.dto.EspecieResponse;
 import com.cogumelos.repository.EspecieCogumeloRepository;
 import org.springframework.stereotype.Service;
 
@@ -14,7 +15,7 @@ public class EspecieService {
         this.repo = repo;
     }
 
-    public List<Dtos.EspecieResponse> listar() {
-        return repo.findAll().stream().map(Dtos.EspecieResponse::from).toList();
+    public List<EspecieResponse> listar() {
+        return repo.findAll().stream().map(EspecieResponse::from).toList();
     }
 }

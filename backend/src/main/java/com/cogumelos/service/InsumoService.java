@@ -1,6 +1,8 @@
 package com.cogumelos.service;
 
 import com.cogumelos.domain.Insumo;
+import com.cogumelos.dto.insumo.InsumoRequest;
+import com.cogumelos.dto.insumo.InsumoResponse;
 import com.cogumelos.repository.InsumoRepository;
 import com.cogumelos.security.TenantContext;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -22,9 +24,9 @@ public class InsumoService {
         this.repo = repo;
     }
 
-    public List<Dtos.InsumoResponse> listar() {
+    public List<InsumoResponse> listar() {
         return repo.findByTenantIdOrderByCategoriaAsc(TenantContext.getTenantId())
-                .stream().map(Dtos.InsumoResponse::from).toList();
+                .stream().map(InsumoResponse::from).toList();
     }
 
     public List<String> categorias() {
@@ -33,7 +35,7 @@ public class InsumoService {
                 .filter(Objects::nonNull).distinct().sorted().toList();
     }
 
-    public Dtos.InsumoResponse criar(Dtos.InsumoRequest req) {
+    public InsumoResponse criar(InsumoRequest req) {
         Insumo i = new Insumo();
         i.setId(UUID.randomUUID().toString());
         i.setTenantId(TenantContext.getTenantId());
@@ -43,18 +45,18 @@ public class InsumoService {
         i.setNitrogenioPct(req.nitrogenioPct());
         i.setPh(req.ph());
         i.setCategoria(req.categoria());
-        return Dtos.InsumoResponse.from(repo.save(i));
+        return InsumoResponse.from(repo.save(i));
     }
 
-    public Dtos.InsumoResponse atualizar(
+    public InsumoResponse atualizar(
             String id,
-            Dtos.InsumoRequest req) {
+            InsumoRequest req) {
         Insumo i = repo.findByIdAndTenantId(id, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Insumo não encontrado"));
         i.setNome(req.nome()); i.setMoPct(req.moPct());
         i.setCarbonoPct(req.carbonoPct()); i.setNitrogenioPct(req.nitrogenioPct());
         i.setPh(req.ph()); i.setCategoria(req.categoria());
-        return Dtos.InsumoResponse.from(repo.save(i));
+        return InsumoResponse.from(repo.save(i));
     }
 
     public void deletar(

@@ -1,5 +1,8 @@
 package com.cogumelos.controller;
 
+import com.cogumelos.dto.formulacao.FormulacaoRequest;
+import com.cogumelos.dto.formulacao.FormulacaoResponse;
+import com.cogumelos.dto.formulacao.StatusRequest;
 import com.cogumelos.service.FormulacaoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -25,7 +28,7 @@ class FormulacaoController {
     @Operation(summary = "Listar formulações do tenant")
     @ApiResponse(responseCode = "200", description = "Lista de formulações ordenadas por data de criação")
     @GetMapping
-    public List<Dtos.FormulacaoResponse> listar() {
+    public List<FormulacaoResponse> listar() {
         return service.listar();
     }
 
@@ -35,7 +38,7 @@ class FormulacaoController {
         @ApiResponse(responseCode = "404", description = "Formulação não encontrada")
     })
     @GetMapping("/{id}")
-    public Dtos.FormulacaoResponse buscar(
+    public FormulacaoResponse buscar(
             @Parameter(description = "ID da formulação") @PathVariable String id) {
         return service.buscar(id);
     }
@@ -48,8 +51,8 @@ class FormulacaoController {
         @ApiResponse(responseCode = "404", description = "Espécie não encontrada")
     })
     @PostMapping
-    public ResponseEntity<Dtos.FormulacaoResponse> criar(
-            @Valid @RequestBody Dtos.FormulacaoRequest req,
+    public ResponseEntity<FormulacaoResponse> criar(
+            @Valid @RequestBody FormulacaoRequest req,
             Authentication auth) {
         String userId = (String) auth.getPrincipal();
         return ResponseEntity.status(201).body(service.criar(req, userId));
@@ -57,9 +60,9 @@ class FormulacaoController {
 
     @Operation(summary = "Atualizar status da formulação")
     @PatchMapping("/{id}/status")
-    public Dtos.FormulacaoResponse status(
+    public FormulacaoResponse status(
             @Parameter(description = "ID da formulação") @PathVariable String id,
-            @Valid @RequestBody Dtos.StatusRequest req) {
+            @Valid @RequestBody StatusRequest req) {
         return service.atualizarStatus(id, req.status());
     }
 
@@ -84,9 +87,9 @@ class FormulacaoController {
 
     @Operation(summary = "Atualizar formulação completa")
     @PutMapping("/{id}")
-    public Dtos.FormulacaoResponse atualizar(
+    public FormulacaoResponse atualizar(
             @Parameter(description = "ID da formulação") @PathVariable String id,
-            @Valid @RequestBody Dtos.FormulacaoRequest req) {
+            @Valid @RequestBody FormulacaoRequest req) {
         return service.atualizar(id, req);
     }
 }

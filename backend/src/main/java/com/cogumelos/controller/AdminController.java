@@ -11,6 +11,9 @@
 
 package com.cogumelos.controller;
 
+import com.cogumelos.dto.usuario.RegistroRequest;
+import com.cogumelos.dto.usuario.UsuarioResponse;
+import com.cogumelos.dto.usuario.UsuarioUpdateRequest;
 import com.cogumelos.security.TenantContext;
 import com.cogumelos.service.TenantService;
 import com.cogumelos.service.UsuarioService;

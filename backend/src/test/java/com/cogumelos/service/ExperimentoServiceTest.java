@@ -12,6 +12,8 @@
 package com.cogumelos.service;
 
 import com.cogumelos.domain.*;
+import com.cogumelos.dto.experimento.ExperimentoRequest;
+import com.cogumelos.dto.experimento.ExperimentoResponse;
 import com.cogumelos.enums.Fase;
 import com.cogumelos.repository.*;
 import com.cogumelos.security.TenantContext;

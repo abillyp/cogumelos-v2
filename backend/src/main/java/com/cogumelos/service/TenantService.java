@@ -17,6 +17,8 @@ import com.cogumelos.domain.Usuario;
 import com.cogumelos.dto.tenant.AtualizarTenantRequest;
 import com.cogumelos.dto.tenant.CriarTenantRequest;
 import com.cogumelos.dto.tenant.TenantAdminResponse;
+import com.cogumelos.dto.usuario.RegistroRequest;
+import com.cogumelos.dto.usuario.UsuarioResponse;
 import com.cogumelos.enums.PlanoType;
 import com.cogumelos.enums.Role;
 import com.cogumelos.enums.StatusTenant;
@@ -92,13 +94,13 @@ public class TenantService {
         });
     }
 
-    public List<Dtos.UsuarioResponse> listar(Long idTenant) {
+    public List<UsuarioResponse> listar(Long idTenant) {
         return usuarioRepository.findByTenantId(idTenant)
-                .stream().map(Dtos.UsuarioResponse::from).toList();
+                .stream().map(UsuarioResponse::from).toList();
     }
 
     @Transactional
-    public ResponseEntity<?> registro(Dtos.RegistroRequest req, int refreshDays) {
+    public ResponseEntity<?> registro(RegistroRequest req, int refreshDays) {
         if (usuarioRepository.existsByEmail(req.email()))
             throw new RuntimeException("Email já cadastrado");
         try {
@@ -113,8 +115,8 @@ public class TenantService {
 
             // Copia insumos do catálogo padrão
             inicializarTenant(tenant);
-            Dtos.UsuarioResponse usuarioResponse = usuarioService.criar(req, Role.ADMIN_TENANT);
-            Usuario usuario = Dtos.UsuarioResponse.to(usuarioResponse);
+            UsuarioResponse usuarioResponse = usuarioService.criar(req, Role.ADMIN_TENANT);
+            Usuario usuario = UsuarioResponse.to(usuarioResponse);
 
             return ResponseEntity.status(201).body(authService.buildLoginResponse(usuario, refreshDays ));
         } catch (Exception e) {
@@ -138,11 +140,11 @@ public class TenantService {
         t.setTrialExpira(LocalDate.now().plusDays(QUATORZE));
         tenantRepo.save(t);
 
-        Dtos.RegistroRequest registroRequest = new Dtos.RegistroRequest(req.nome(), req.nomeAdmin(), req.email(), req.senhaAdmin());
+        RegistroRequest registroRequest = new RegistroRequest(req.nome(), req.nomeAdmin(), req.email(), req.senhaAdmin());
 
-        Dtos.UsuarioResponse usuarioResponse = usuarioService.criar(registroRequest, Role.ADMIN_TENANT);
+        UsuarioResponse usuarioResponse = usuarioService.criar(registroRequest, Role.ADMIN_TENANT);
 
-        Usuario admin = Dtos.UsuarioResponse.to(usuarioResponse);
+        Usuario admin = UsuarioResponse.to(usuarioResponse);
 
         return TenantAdminResponse.from(t, admin, 0L, 1L);
     }

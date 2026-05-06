@@ -1,5 +1,7 @@
 package com.cogumelos.controller;
 
+import com.cogumelos.dto.usuario.LoginRequest;
+import com.cogumelos.dto.usuario.RegistroRequest;
 import com.cogumelos.service.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;

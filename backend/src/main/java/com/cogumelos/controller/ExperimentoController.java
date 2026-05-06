@@ -1,5 +1,7 @@
 package com.cogumelos.controller;
 
+import com.cogumelos.dto.custos.AtualizarCustosRequest;
+import com.cogumelos.dto.experimento.*;
 import com.cogumelos.enums.Fase;
 import com.cogumelos.service.ExperimentoService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -75,7 +77,7 @@ public class ExperimentoController {
     })
     @PatchMapping("/{id}/avancar")
     public ExperimentoResponse avancar(
-            @Parameter(description = "ID do experimento") @PathVariable String id, @RequestBody(required = false) AvancarRequest  req) {
+            @Parameter(description = "ID do experimento") @PathVariable String id, @RequestBody(required = false) AvancarRequest req) {
         Fase proximaFase = req != null ? req.proximoStatus() : null;
         return service.avancarStatus(id, proximaFase);
     }

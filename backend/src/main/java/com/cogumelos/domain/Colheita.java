@@ -14,13 +14,16 @@ package com.cogumelos.domain;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "colheitas")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 public class Colheita extends TenantEntity{
 

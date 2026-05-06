@@ -15,13 +15,15 @@ import com.cogumelos.enums.Sala;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "lote_monitoramentos")
-@Data
+@Getter @Setter
 @NoArgsConstructor
 public class LoteMonitoramento extends TenantEntity{
 

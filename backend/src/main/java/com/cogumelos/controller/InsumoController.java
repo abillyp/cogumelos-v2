@@ -1,5 +1,7 @@
 package com.cogumelos.controller;
 
+import com.cogumelos.dto.insumo.InsumoRequest;
+import com.cogumelos.dto.insumo.InsumoResponse;
 import com.cogumelos.service.InsumoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

@@ -14,11 +14,14 @@ package com.cogumelos.domain;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "insumos")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 public class Insumo extends TenantEntity{
 

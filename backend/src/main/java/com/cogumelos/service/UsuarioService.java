@@ -3,6 +3,10 @@ package com.cogumelos.service;
 import com.cogumelos.domain.PasswordResetToken;
 import com.cogumelos.domain.Tenant;
 import com.cogumelos.domain.Usuario;
+import com.cogumelos.dto.usuario.LoginRequest;
+import com.cogumelos.dto.usuario.RegistroRequest;
+import com.cogumelos.dto.usuario.UsuarioResponse;
+import com.cogumelos.dto.usuario.UsuarioUpdateRequest;
 import com.cogumelos.enums.Role;
 import com.cogumelos.repository.PasswordResetTokenRepository;
 import com.cogumelos.repository.TenantRepository;
@@ -39,8 +43,8 @@ public class UsuarioService {
         this.authService = authService;
     }
 
-    public Dtos.UsuarioResponse atualizar(String id,
-                                          Dtos.UsuarioUpdateRequest req) {
+    public UsuarioResponse atualizar(String id,
+                                     UsuarioUpdateRequest req) {
         // ✅ busca dentro do tenant
         Usuario u = usuarioRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResponseStatusException(
@@ -50,11 +54,11 @@ public class UsuarioService {
         if (req.role() != null) u.setRole(Role.valueOf(req.role()));
         if (req.ativo() != null) u.setAtivo(req.ativo());
 
-        return Dtos.UsuarioResponse.from(usuarioRepository.save(u));
+        return UsuarioResponse.from(usuarioRepository.save(u));
     }
 
     @Transactional
-    public Map<String, Object> login(Dtos.LoginRequest req, int refreshDays) {
+    public Map<String, Object> login(LoginRequest req, int refreshDays) {
         Usuario u = usuarioRepository.findByEmail(req.email())
                 .orElseThrow(() -> new RuntimeException("Email ou senha inválidos"));
         if (!u.isAtivo()) throw new RuntimeException("Usuário inativo. Contate o administrador.");
@@ -72,7 +76,7 @@ public class UsuarioService {
         usuarioRepository.deleteById(id);
     }
 
-    public Dtos.UsuarioResponse criar(Dtos.RegistroRequest req, Role role) {
+    public UsuarioResponse criar(RegistroRequest req, Role role) {
         if (usuarioRepository.existsByEmail(req.email()))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email já cadastrado");
 
@@ -86,17 +90,17 @@ public class UsuarioService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant não encontrado"));
         u.setTenant(tenant); // ✅ vincula ao tenant
 
-        return Dtos.UsuarioResponse.from(usuarioRepository.save(u));
+        return UsuarioResponse.from(usuarioRepository.save(u));
     }
 
-    public Dtos.UsuarioResponse criar(Dtos.RegistroRequest req) {
+    public UsuarioResponse criar(RegistroRequest req) {
          return criar(req, Role.PRODUTOR);
     }
 
-    public Dtos.UsuarioResponse me(String userId) {
+    public UsuarioResponse me(String userId) {
         Usuario u = usuarioRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
-        return Dtos.UsuarioResponse.from(u);
+        return UsuarioResponse.from(u);
     }
 
     @Transactional

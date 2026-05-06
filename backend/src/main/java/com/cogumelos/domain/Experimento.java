@@ -15,7 +15,9 @@ import com.cogumelos.enums.Fase;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -24,7 +26,8 @@ import java.util.List;
 @Entity
 @Table(name = "experimentos")
 @NoArgsConstructor
-@Data
+@Getter
+@Setter
 public class Experimento extends TenantEntity implements org.springframework.data.domain.Persistable<String> {
 
     @Id
