@@ -1,4 +1,4 @@
-package com.cogumelos.dto;
+package com.cogumelos.dto.tenant;
 
 import com.cogumelos.enums.PlanoType;
 import com.cogumelos.enums.StatusTenant;

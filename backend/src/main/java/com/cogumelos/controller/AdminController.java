@@ -11,21 +11,13 @@
 
 package com.cogumelos.controller;
 
-import com.cogumelos.domain.Usuario;
-import com.cogumelos.dto.Dtos.*;
-import com.cogumelos.enums.Role;
-import com.cogumelos.repository.TenantRepository;
-import com.cogumelos.repository.UsuarioRepository;
 import com.cogumelos.security.TenantContext;
 import com.cogumelos.service.TenantService;
 import com.cogumelos.service.UsuarioService;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 

@@ -12,7 +12,6 @@
 package com.cogumelos.service;
 
 import com.cogumelos.domain.*;
-import com.cogumelos.dto.Dtos.*;
 import com.cogumelos.enums.Role;
 import com.cogumelos.enums.Sala;
 import com.cogumelos.enums.Fase;

@@ -1,6 +1,5 @@
 package com.cogumelos.service;
 
-import com.cogumelos.dto.Dtos;
 import com.cogumelos.repository.EspecieCogumeloRepository;
 import org.springframework.stereotype.Service;
 

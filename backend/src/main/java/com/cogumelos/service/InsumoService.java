@@ -1,16 +1,12 @@
 package com.cogumelos.service;
 
 import com.cogumelos.domain.Insumo;
-import com.cogumelos.dto.Dtos;
 import com.cogumelos.repository.InsumoRepository;
 import com.cogumelos.security.TenantContext;
 import io.swagger.v3.oas.annotations.Parameter;
-import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;

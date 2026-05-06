@@ -11,7 +11,6 @@
 
 package com.cogumelos.controller;
 
-import com.cogumelos.dto.Dtos.RelatorioResponse;
 import com.cogumelos.service.ExperimentoService;
 import org.springframework.web.bind.annotation.*;
 

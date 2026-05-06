@@ -1,0 +1,17 @@
+package com.cogumelos.dto.formulacao;
+
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+import java.util.List;
+
+public record FormulacaoRequest(
+        @NotBlank String especieId,
+        @NotBlank String nome,
+        @NotNull @Size(min=1) List<FormulacaoInsumoItem> insumos,
+        @NotNull @DecimalMin(value = "0.1", message = "Umidade desejada deve ser maior que zero.") Double umidadeDesejada,
+        @NotNull @DecimalMin(value = "0.1", message = "Peso por bloco deve ser maior que zero.") Double pesoBlocoKg,
+        Integer totalBlocos
+) {}

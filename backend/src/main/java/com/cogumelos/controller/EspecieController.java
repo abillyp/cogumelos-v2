@@ -11,8 +11,6 @@
 
 package com.cogumelos.controller;
 
-import com.cogumelos.dto.Dtos;
-import com.cogumelos.repository.EspecieCogumeloRepository;
 import com.cogumelos.service.EspecieService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

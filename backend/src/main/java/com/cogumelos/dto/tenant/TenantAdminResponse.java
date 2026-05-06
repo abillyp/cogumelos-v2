@@ -1,4 +1,4 @@
-package com.cogumelos.dto;
+package com.cogumelos.dto.tenant;
 
 import com.cogumelos.domain.Tenant;
 import com.cogumelos.domain.Usuario;

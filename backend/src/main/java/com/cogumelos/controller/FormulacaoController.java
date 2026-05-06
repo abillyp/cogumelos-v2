@@ -1,6 +1,5 @@
 package com.cogumelos.controller;
 
-import com.cogumelos.dto.Dtos;
 import com.cogumelos.service.FormulacaoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

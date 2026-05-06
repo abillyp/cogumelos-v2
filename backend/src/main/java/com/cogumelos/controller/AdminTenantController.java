@@ -1,12 +1,8 @@
 package com.cogumelos.controller;
 
-import com.cogumelos.domain.Tenant;
-import com.cogumelos.domain.Usuario;
-import com.cogumelos.dto.AtualizarTenantRequest;
-import com.cogumelos.dto.TenantAdminResponse;
-import com.cogumelos.dto.CriarTenantRequest;
-import com.cogumelos.enums.PlanoType;
-import com.cogumelos.enums.StatusTenant;
+import com.cogumelos.dto.tenant.AtualizarTenantRequest;
+import com.cogumelos.dto.tenant.TenantAdminResponse;
+import com.cogumelos.dto.tenant.CriarTenantRequest;
 import com.cogumelos.repository.ExperimentoRepository;
 import com.cogumelos.repository.TenantRepository;
 import com.cogumelos.repository.UsuarioRepository;
@@ -14,15 +10,11 @@ import com.cogumelos.service.TenantService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin/tenants")
