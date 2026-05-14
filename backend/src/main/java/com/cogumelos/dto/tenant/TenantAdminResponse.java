@@ -23,6 +23,7 @@ public record TenantAdminResponse(
         LocalDate trialExpira, LocalDate assinaturaExpira,
         LocalDateTime criadoEm,
         String usuarioAdminNome, String usuarioAdminEmail,
+        String adminRole,
         long totalExperimentos, long totalUsuarios
 ) {
     public static TenantAdminResponse from(Tenant t, Usuario admin,
@@ -34,6 +35,7 @@ public record TenantAdminResponse(
                 t.getCriadoEm(),
                 admin != null ? admin.getNome() : "—",
                 admin != null ? admin.getEmail() : "—",
+                admin != null ? admin.getRole().name() : "—",
                 experimentos, usuarios
         );
     }

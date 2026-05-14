@@ -15,7 +15,6 @@ import com.cogumelos.dto.tenant.AtualizarTenantRequest;
 import com.cogumelos.dto.tenant.TenantAdminResponse;
 import com.cogumelos.dto.tenant.CriarTenantRequest;
 import com.cogumelos.dto.usuario.UsuarioResponse;
-import com.cogumelos.security.TenantContext;
 import com.cogumelos.service.TenantService;
 import com.cogumelos.service.UsuarioService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,7 +22,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
