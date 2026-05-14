@@ -10,10 +10,15 @@ import { Insumo, Especie, Formulacao } from '@/lib/types'
 import { MetricCard, CnAlert, ContribuicaoBar } from '@/components/Components'
 import ProtectedRoute from '@/components/ProtectedRoute'
 
-interface Linha { insumoId: string; pesoRealKg: number; umidadePct: number }
+interface Linha { insumoId: string; pesoRealKg: number | string; umidadePct: number | string }
 
 const DRAFT_KEY = 'cogumelos:calc-draft'
 const BAR_COLORS = ['var(--purple)','var(--teal-m)','var(--amber)','var(--blue)','#D2A8FF']
+
+function toNum(v: number | string): number {
+  const n = parseFloat(String(v))
+  return isNaN(n) ? 0 : n
+}
 
 function calcular(linhas: Linha[], insumos: Insumo[]) {
   let totalC = 0, totalN = 0, totalPeso = 0, somaPh = 0, countPh = 0
@@ -21,13 +26,15 @@ function calcular(linhas: Linha[], insumos: Insumo[]) {
   const contribs: { id: string; nome: string; cKg: number }[] = []
   for (const l of linhas) {
     const ins = insumos.find(i => i.id === l.insumoId)
-    if (!ins || !l.pesoRealKg) { contribs.push({ id: l.insumoId, nome: '—', cKg: 0 }); continue }
-    const ps  = l.pesoRealKg * (1 - l.umidadePct / 100)
-    const pu  = l.pesoRealKg - ps
+    const peso = toNum(l.pesoRealKg)
+    const umid = toNum(l.umidadePct)
+    if (!ins || !peso) { contribs.push({ id: l.insumoId, nome: '—', cKg: 0 }); continue }
+    const ps  = peso * (1 - umid / 100)
+    const pu  = peso - ps
     const mo  = ps * ins.moPct
     const cKg = mo * ins.carbonoPct
     const nKg = mo * ins.nitrogenioPct
-    totalC    += cKg; totalN += nKg; totalPeso += l.pesoRealKg
+    totalC    += cKg; totalN += nKg; totalPeso += peso
     totalPesoSeco  += ps
     totalPesoUmido += pu
     if (ins.ph !== null) { somaPh += ins.ph; countPh++ }
@@ -44,6 +51,24 @@ function calcularAgua(totalPesoSeco: number, totalPeso: number, umidadeDesejada:
   if (umidadeDesejada <= 0 || umidadeDesejada >= 100) return null
   const agua = (100 * totalPesoSeco + totalPeso * (umidadeDesejada - 100)) / (100 - umidadeDesejada)
   return agua < 0 ? 0 : agua
+}
+
+function numericOnChange(setter: (v: string | number) => void) {
+  return (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value
+    if (raw === '' || raw === '0' || raw === '0.') {
+      setter(raw)
+      return
+    }
+    const n = parseFloat(raw)
+    if (!isNaN(n)) setter(n)
+  }
+}
+
+function numericValue(v: number | string | ''): string | number {
+  if (v === '' || v === '0' || v === '0.') return v as string
+  const n = toNum(v as number | string)
+  return n === 0 ? '' : v as number
 }
 
 // ─── Modal de consulta ───────────────────────────────────────────────────────
@@ -134,39 +159,50 @@ function ModalEdicao({ formulacao, insumos, especies, onFechar, onSalva }: {
       umidadePct: Math.round(fi.umidadePct * 100),
     }))
   )
-  const [umidadeDesejada, setUmidadeDesejada] = useState<number | ''>(formulacao.umidadeDesejada ?? '')
-  const [pesoBlocoKg, setPesoBlocoKg]         = useState<number | ''>(formulacao.pesoBlocoKg ?? '')
+  const [umidadeDesejada, setUmidadeDesejada] = useState<number | string>(formulacao.umidadeDesejada ?? '')
+  const [pesoBlocoKg, setPesoBlocoKg]         = useState<number | string>(formulacao.pesoBlocoKg ?? '')
   const [salvando, setSalvando]           = useState(false)
   const [erro, setErro]                   = useState('')
 
   const especie = especies.find(e => e.id === especieId)
   const { cnTotal, totalPeso, totalPesoSeco, totalPesoUmido } = calcular(linhas, insumos)
 
+  const umidNum = toNum(umidadeDesejada)
   const agua = (umidadeDesejada !== '' && totalPesoSeco > 0)
-    ? calcularAgua(totalPesoSeco, totalPeso, umidadeDesejada as number)
+    ? calcularAgua(totalPesoSeco, totalPeso, umidNum)
     : null
   const pesoFinal = agua !== null ? totalPeso + agua : null
-  const qtdBlocos = (pesoFinal !== null && pesoBlocoKg !== '' && (pesoBlocoKg as number) > 0)
-    ? Math.floor(pesoFinal / (pesoBlocoKg as number))
+  const pesoNum = toNum(pesoBlocoKg)
+  const qtdBlocos = (pesoFinal !== null && pesoBlocoKg !== '' && pesoNum > 0)
+    ? Math.floor(pesoFinal / pesoNum)
     : null
 
   function setLinha(i: number, field: keyof Linha, value: string | number) {
     setLinhas(l => l.map((row, idx) => idx === i ? { ...row, [field]: value } : row))
   }
 
+  function linhaOnChange(i: number, field: keyof Linha) {
+    return (e: React.ChangeEvent<HTMLInputElement>) => {
+      const raw = e.target.value
+      if (raw === '' || raw === '0' || raw === '0.') { setLinha(i, field, raw); return }
+      const n = parseFloat(raw)
+      if (!isNaN(n)) setLinha(i, field, n)
+    }
+  }
+
   async function salvar() {
     if (!nome.trim()) { setErro('Preencha o nome.'); return }
     if (umidadeDesejada === '') { setErro('Informe a umidade desejada.'); return }
     if (pesoBlocoKg === '') { setErro('Informe o peso por bloco.'); return }
-    const validas = linhas.filter(l => l.insumoId && l.pesoRealKg > 0)
+    const validas = linhas.filter(l => l.insumoId && toNum(l.pesoRealKg) > 0)
     if (!validas.length) { setErro('Adicione pelo menos um insumo.'); return }
     setSalvando(true); setErro('')
     try {
       await api.formulacoes.atualizar(formulacao.id, {
         especieId, nome,
-        insumos: validas.map(l => ({ ...l, umidadePct: l.umidadePct / 100 })),
-        umidadeDesejada: umidadeDesejada as number,
-        pesoBlocoKg: pesoBlocoKg as number,
+        insumos: validas.map(l => ({ ...l, pesoRealKg: toNum(l.pesoRealKg), umidadePct: toNum(l.umidadePct) / 100 })),
+        umidadeDesejada: umidNum,
+        pesoBlocoKg: pesoNum,
         totalBlocos: qtdBlocos,
       })
       onSalva()
@@ -221,11 +257,11 @@ function ModalEdicao({ formulacao, insumos, especies, onFechar, onSalva }: {
               {insumos.map(ins => <option key={ins.id} value={ins.id}>{ins.nome}</option>)}
             </select>
             <input type="number" min={0} step={0.1} className="input"
-              value={l.pesoRealKg === 0 ? '' : l.pesoRealKg}
-              onChange={e => setLinha(i, 'pesoRealKg', e.target.value === '' ? 0 : parseFloat(e.target.value) || 0)} />
+              value={numericValue(l.pesoRealKg)}
+              onChange={linhaOnChange(i, 'pesoRealKg')} />
             <input type="number" min={0} max={100} className="input"
-              value={l.umidadePct === 0 ? '' : l.umidadePct}
-              onChange={e => setLinha(i, 'umidadePct', e.target.value === '' ? 0 : parseFloat(e.target.value) || 0)} />
+              value={numericValue(l.umidadePct)}
+              onChange={linhaOnChange(i, 'umidadePct')} />
             <button onClick={() => setLinhas(l => l.filter((_, idx) => idx !== i))}
               style={{ color: '#ddd', fontSize: 18, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>×</button>
           </div>
@@ -241,15 +277,15 @@ function ModalEdicao({ formulacao, insumos, especies, onFechar, onSalva }: {
             <div>
               <label className="label">Umidade desejada (%)</label>
               <input type="number" min={1} max={99} step={0.1} className="input"
-                value={umidadeDesejada === '' ? '' : umidadeDesejada}
-                onChange={e => setUmidadeDesejada(e.target.value === '' ? '' : parseFloat(e.target.value) || '')}
+                value={numericValue(umidadeDesejada)}
+                onChange={numericOnChange(setUmidadeDesejada)}
                 placeholder="Ex: 65" />
             </div>
             <div>
               <label className="label">Peso por bloco (kg)</label>
               <input type="number" min={0} step={0.1} className="input"
-                value={pesoBlocoKg === '' ? '' : pesoBlocoKg}
-                onChange={e => setPesoBlocoKg(e.target.value === '' ? '' : parseFloat(e.target.value) || '')}
+                value={numericValue(pesoBlocoKg)}
+                onChange={numericOnChange(setPesoBlocoKg)}
                 placeholder="Ex: 1.2" />
             </div>
           </div>
@@ -358,8 +394,8 @@ function Calculadora() {
   const [especieId, setEspecieId]     = useState('')
   const [nome, setNome]               = useState('')
   const [linhas, setLinhas]           = useState<Linha[]>([{ insumoId:'', pesoRealKg:0, umidadePct:40 }])
-  const [umidadeDesejada, setUmidadeDesejada] = useState<number | ''>('')
-  const [pesoBlocoKg, setPesoBlocoKg]         = useState<number | ''>('')
+  const [umidadeDesejada, setUmidadeDesejada] = useState<number | string>('')
+  const [pesoBlocoKg, setPesoBlocoKg]         = useState<number | string>('')
   const [salvando, setSalvando]       = useState(false)
   const [msg, setMsg]                 = useState('')
   const [msgOk, setMsgOk]             = useState(false)
@@ -392,16 +428,27 @@ function Calculadora() {
   const { cnTotal, phMedio, totalPeso, contribs, totalC, totalPesoSeco, totalPesoUmido } = calcular(linhas, insumos)
   const contribsPct = contribs.map(({ id, nome, cKg }) => ({ id, nome, pct: totalC > 0 ? (cKg/totalC)*100 : 0 })).filter(c => c.pct > 0)
 
+  const umidNum = toNum(umidadeDesejada)
   const agua = (umidadeDesejada !== '' && totalPeso > 0)
-    ? calcularAgua(totalPesoSeco, totalPeso, umidadeDesejada as number)
+    ? calcularAgua(totalPesoSeco, totalPeso, umidNum)
     : null
   const pesoFinal = agua !== null ? totalPeso + agua : null
-  const qtdBlocos = (pesoFinal !== null && pesoBlocoKg !== '' && (pesoBlocoKg as number) > 0)
-    ? Math.floor(pesoFinal / (pesoBlocoKg as number))
+  const pesoNum = toNum(pesoBlocoKg)
+  const qtdBlocos = (pesoFinal !== null && pesoBlocoKg !== '' && pesoNum > 0)
+    ? Math.floor(pesoFinal / pesoNum)
     : null
 
   function setLinha(i: number, field: keyof Linha, value: string | number) {
     setLinhas(l => l.map((row, idx) => idx === i ? { ...row, [field]: value } : row))
+  }
+
+  function linhaOnChange(i: number, field: keyof Linha) {
+    return (e: React.ChangeEvent<HTMLInputElement>) => {
+      const raw = e.target.value
+      if (raw === '' || raw === '0' || raw === '0.') { setLinha(i, field, raw); return }
+      const n = parseFloat(raw)
+      if (!isNaN(n)) setLinha(i, field, n)
+    }
   }
 
   function duplicarFormulacao(f: Formulacao) {
@@ -421,15 +468,15 @@ function Calculadora() {
     if (!especieId || !nome.trim()) { setMsg('Preencha nome e espécie.'); setMsgOk(false); return }
     if (umidadeDesejada === '') { setMsg('Informe a umidade desejada.'); setMsgOk(false); return }
     if (pesoBlocoKg === '') { setMsg('Informe o peso por bloco.'); setMsgOk(false); return }
-    const validas = linhas.filter(l => l.insumoId && l.pesoRealKg > 0)
+    const validas = linhas.filter(l => l.insumoId && toNum(l.pesoRealKg) > 0)
     if (!validas.length) { setMsg('Adicione pelo menos um insumo.'); setMsgOk(false); return }
     setSalvando(true); setMsg('')
     try {
       await api.formulacoes.criar({
         especieId, nome,
-        insumos: validas.map(l => ({ ...l, umidadePct: l.umidadePct/100 })),
-        umidadeDesejada: umidadeDesejada as number,
-        pesoBlocoKg: pesoBlocoKg as number,
+        insumos: validas.map(l => ({ ...l, pesoRealKg: toNum(l.pesoRealKg), umidadePct: toNum(l.umidadePct)/100 })),
+        umidadeDesejada: umidNum,
+        pesoBlocoKg: pesoNum,
         totalBlocos: qtdBlocos,
       })
       setMsg('Formulação salva!'); setMsgOk(true)
@@ -483,7 +530,9 @@ function Calculadora() {
 
         {linhas.map((l, i) => {
           const ins = insumos.find(x => x.id === l.insumoId)
-          const ps  = ins ? l.pesoRealKg * (1 - l.umidadePct/100) : 0
+          const peso = toNum(l.pesoRealKg)
+          const umid = toNum(l.umidadePct)
+          const ps  = ins ? peso * (1 - umid/100) : 0
           return (
             <div key={i} style={{ borderBottom:'1px solid #F7F6F3', paddingBottom:10, marginBottom:10 }}>
               <div className="sm:hidden">
@@ -499,14 +548,14 @@ function Calculadora() {
                   <div>
                     <label className="label">Peso (kg)</label>
                     <input type="number" min={0} step={0.1} className="input"
-                      value={l.pesoRealKg === 0 ? '' : l.pesoRealKg}
-                      onChange={e => setLinha(i, 'pesoRealKg', e.target.value === '' ? 0 : parseFloat(e.target.value) || 0)} />
+                      value={numericValue(l.pesoRealKg)}
+                      onChange={linhaOnChange(i, 'pesoRealKg')} />
                   </div>
                   <div>
                     <label className="label">Umidade (%)</label>
                     <input type="number" min={0} max={100} className="input"
-                      value={l.umidadePct === 0 ? '' : l.umidadePct}
-                      onChange={e => setLinha(i, 'umidadePct', e.target.value === '' ? 0 : parseFloat(e.target.value) || 0)} />
+                      value={numericValue(l.umidadePct)}
+                      onChange={linhaOnChange(i, 'umidadePct')} />
                   </div>
                 </div>
                 {ins && <p style={{ fontSize:11, color:'#888', marginTop:4 }}>C: {(ps*ins.moPct*ins.carbonoPct).toFixed(2)} kg · N: {(ps*ins.moPct*ins.nitrogenioPct).toFixed(4)} kg</p>}
@@ -517,11 +566,11 @@ function Calculadora() {
                   {insumos.map(ins => <option key={ins.id} value={ins.id}>{ins.nome}</option>)}
                 </select>
                 <input type="number" min={0} step={0.1} className="input text-xs"
-                  value={l.pesoRealKg === 0 ? '' : l.pesoRealKg}
-                  onChange={e => setLinha(i,'pesoRealKg', e.target.value === '' ? 0 : parseFloat(e.target.value)||0)} />
+                  value={numericValue(l.pesoRealKg)}
+                  onChange={linhaOnChange(i, 'pesoRealKg')} />
                 <input type="number" min={0} max={100} className="input text-xs"
-                  value={l.umidadePct === 0 ? '' : l.umidadePct}
-                  onChange={e => setLinha(i,'umidadePct', e.target.value === '' ? 0 : parseFloat(e.target.value)||0)} />
+                  value={numericValue(l.umidadePct)}
+                  onChange={linhaOnChange(i, 'umidadePct')} />
                 <span style={{ fontSize:13, color:'#888' }}>{ins ? (ps*ins.moPct*ins.carbonoPct).toFixed(2) : '—'}</span>
                 <span style={{ fontSize:13, color:'#888' }}>{ins ? (ps*ins.moPct*ins.nitrogenioPct).toFixed(4) : '—'}</span>
                 <button onClick={() => setLinhas(l => l.filter((_,idx) => idx !== i))}
@@ -542,15 +591,15 @@ function Calculadora() {
             <div>
               <label className="label">Umidade desejada (%)</label>
               <input type="number" min={1} max={99} step={0.1} className="input"
-                value={umidadeDesejada === '' ? '' : umidadeDesejada}
-                onChange={e => setUmidadeDesejada(e.target.value === '' ? '' : parseFloat(e.target.value) || '')}
+                value={numericValue(umidadeDesejada)}
+                onChange={numericOnChange(setUmidadeDesejada)}
                 placeholder="Ex: 65" />
             </div>
             <div>
               <label className="label">Peso por bloco (kg)</label>
               <input type="number" min={0} step={0.1} className="input"
-                value={pesoBlocoKg === '' ? '' : pesoBlocoKg}
-                onChange={e => setPesoBlocoKg(e.target.value === '' ? '' : parseFloat(e.target.value) || '')}
+                value={numericValue(pesoBlocoKg)}
+                onChange={numericOnChange(setPesoBlocoKg)}
                 placeholder="Ex: 1.2" />
             </div>
           </div>
