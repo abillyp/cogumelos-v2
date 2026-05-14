@@ -366,7 +366,7 @@ function AdminTenants() {
                         color:      t.adminRole.includes('ADMIN') ? '#3C3489' : '#27500A',
                         fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 999
                       }}>
-                        {t.adminRole.includes('ADMIN') ? 'Admin' : 'Produtor'}
+                        {t.adminRole.includes('ADMIN') ? t.adminRole : 'Produtor'}
                       </span>
                     ) : (
                       <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>—</span>
