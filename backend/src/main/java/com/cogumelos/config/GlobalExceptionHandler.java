@@ -13,28 +13,11 @@ package com.cogumelos.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import jakarta.persistence.AttributeConverter;
-import jakarta.persistence.Converter;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-import java.time.LocalDate;
+
 import java.util.Map;
-
-@Converter(autoApply = false)
-class LocalDateConverter implements AttributeConverter<LocalDate, String> {
-
-    @Override
-    public String convertToDatabaseColumn(LocalDate date) {
-        return date != null ? date.toString() : null;
-    }
-
-    @Override
-    public LocalDate convertToEntityAttribute(String value) {
-        if (value == null || value.isBlank() || value.equals("n/a")) return null;
-        try { return LocalDate.parse(value); } catch (Exception e) { return null; }
-    }
-}
 
 @RestControllerAdvice
 class GlobalExceptionHandler {

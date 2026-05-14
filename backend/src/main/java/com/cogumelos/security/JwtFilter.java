@@ -46,7 +46,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
                 if (jwtService.isValid(token)) {
 
-                    // 1. autentica no Spring Security (igual antes)
+                    // 1. autentica no Spring Security
                     String userId = jwtService.getUserId(token);
                     String role   = jwtService.getRole(token);
 
@@ -56,7 +56,7 @@ public class JwtFilter extends OncePerRequestFilter {
                     );
                     SecurityContextHolder.getContext().setAuthentication(auth);
 
-                    // 2. popula TenantContext (era responsabilidade do TenantFilter)
+                    // 2. popula TenantContext
                     Long tenantId = jwtService.extractTenantId(token);
                     String plano  = jwtService.extractPlano(token);
 

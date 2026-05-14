@@ -50,9 +50,6 @@ public class AuthController {
     private final AuthService    authService;
     private final TenantService  tenantService;
 
-    @Value("${jwt.refresh-expiration-days:1}")
-    private int refreshDays;
-
     @Value("${jwt.refresh-expiration-hours:8}")
     private int refreshHours;
 
@@ -73,7 +70,7 @@ public class AuthController {
                 .httpOnly(true)
                 .secure(cookieSecure)
                 .path("/api/auth")
-                .maxAge(Duration.ofDays(refreshHours))
+                .maxAge(Duration.ofHours(refreshHours))
                 .sameSite("Strict")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
@@ -112,7 +109,7 @@ public class AuthController {
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req,
                                    HttpServletResponse response) {
         log.info("=== login chamado: {}", req.email());
-        Map<String, Object> data = usuarioService.login(req, refreshDays);
+        Map<String, Object> data = usuarioService.login(req, refreshHours);
         setRefreshCookie(response, (String) data.get("refreshToken"));
         data.remove("refreshToken"); // não expõe no body
         return ResponseEntity.ok(data);
@@ -127,7 +124,7 @@ public class AuthController {
     @PostMapping("/registro")
     public ResponseEntity<?> registro(@Valid @RequestBody RegistroRequest req,
                                       HttpServletResponse response) {
-        Map<String, Object> data = tenantService.registro(req, refreshDays);
+        Map<String, Object> data = tenantService.registro(req, refreshHours);
         setRefreshCookie(response, (String) data.get("refreshToken"));
         data.remove("refreshToken");
         return ResponseEntity.status(201).body(data);
@@ -146,7 +143,7 @@ public class AuthController {
         if (rt == null)
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("erro", "Refresh token ausente"));
-        Map<String, Object> data = authService.refresh(rt, refreshDays);
+        Map<String, Object> data = authService.refresh(rt, refreshHours);
         setRefreshCookie(response, (String) data.get("refreshToken"));
         data.remove("refreshToken");
         return ResponseEntity.ok(data);

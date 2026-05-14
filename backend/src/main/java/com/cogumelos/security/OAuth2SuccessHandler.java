@@ -47,8 +47,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     @Value("${app.frontend-url:http://localhost:3000}")
     private String frontendUrl;
 
-    @Value("${jwt.refresh-expiration-days:1}")
-    private int refreshDays;
+    @Value("${jwt.refresh-expiration-hours:8}")
+    private int refreshHours;
 
     @Value("${cookie.secure:true}")
     private boolean cookieSecure;
@@ -103,7 +103,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 .httpOnly(true)
                 .secure(cookieSecure)
                 .path("/api/auth")
-                .maxAge(Duration.ofDays(refreshDays))
+                .maxAge(Duration.ofHours(refreshHours))
                 .sameSite("Lax") // ✅ Lax em vez de Strict para funcionar após redirect OAuth2
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
@@ -139,7 +139,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         rt.setId(UUID.randomUUID().toString());
         rt.setToken(UUID.randomUUID().toString());
         rt.setUsuario(u);
-        rt.setExpiraEm(LocalDateTime.now().plusDays(refreshDays));
+        rt.setExpiraEm(LocalDateTime.now().plusHours(refreshHours));
         refreshRepo.save(rt);
         return rt.getToken();
     }
