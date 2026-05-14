@@ -174,7 +174,7 @@ function ModalEdicao({ formulacao, insumos, especies, onFechar, onSalva }: {
   const pesoFinal = agua !== null ? totalPeso + agua : null
   const pesoNum = toNum(pesoBlocoKg)
   const qtdBlocos = (pesoFinal !== null && pesoBlocoKg !== '' && pesoNum > 0)
-    ? Math.floor(pesoFinal / pesoNum)
+    ? Math.round((pesoFinal / pesoNum) * 100) / 100
     : null
 
   function setLinha(i: number, field: keyof Linha, value: string | number) {
@@ -306,7 +306,7 @@ function ModalEdicao({ formulacao, insumos, especies, onFechar, onSalva }: {
               </div>
               <div style={{ background: '#fff', borderRadius: 10, padding: '10px', textAlign: 'center', border: '0.5px solid #E8E8E8' }}>
                 <p style={{ fontSize: 11, color: '#888', margin: '0 0 4px' }}>Qtd de blocos</p>
-                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#0F6E56' }}>{qtdBlocos !== null ? qtdBlocos : '—'}</p>
+                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#0F6E56' }}>{qtdBlocos !== null ? qtdBlocos.toFixed(2) : '—'}</p>
               </div>
             </div>
           </div>
@@ -435,7 +435,7 @@ function Calculadora() {
   const pesoFinal = agua !== null ? totalPeso + agua : null
   const pesoNum = toNum(pesoBlocoKg)
   const qtdBlocos = (pesoFinal !== null && pesoBlocoKg !== '' && pesoNum > 0)
-    ? Math.floor(pesoFinal / pesoNum)
+    ? Math.round((pesoFinal / pesoNum) * 100) / 100
     : null
 
   function setLinha(i: number, field: keyof Linha, value: string | number) {
@@ -620,7 +620,7 @@ function Calculadora() {
               </div>
               <div style={{ background: '#fff', borderRadius: 10, padding: '10px', textAlign: 'center', border: '0.5px solid #E8E8E8' }}>
                 <p style={{ fontSize: 11, color: '#888', margin: '0 0 4px' }}>Qtd de blocos</p>
-                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#0F6E56' }}>{qtdBlocos !== null ? qtdBlocos : '—'}</p>
+                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#0F6E56' }}>{qtdBlocos !== null ? qtdBlocos.toFixed(2) : '—'}</p>
               </div>
             </div>
           </div>
