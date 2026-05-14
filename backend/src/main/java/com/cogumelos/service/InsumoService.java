@@ -36,12 +36,12 @@ public class InsumoService {
     }
 
     public List<InsumoResponse> listar() {
-        return repo.findByTenantIdOrderByCategoriaAsc(TenantContext.getTenantId())
+        return repo.findByTenantIdOrderByCategoriaAscNomeAsc(TenantContext.getTenantId())
                 .stream().map(InsumoResponse::from).toList();
     }
 
     public List<String> categorias() {
-        return repo.findByTenantIdOrderByCategoriaAsc(TenantContext.getTenantId())
+        return repo.findByTenantIdOrderByCategoriaAscNomeAsc(TenantContext.getTenantId())
                 .stream().map(Insumo::getCategoria)
                 .filter(Objects::nonNull).distinct().sorted().toList();
     }

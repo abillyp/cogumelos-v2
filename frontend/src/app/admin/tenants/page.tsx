@@ -17,6 +17,7 @@ interface TenantAdmin {
   trialExpira: string | null; assinaturaExpira: string | null
   criadoEm: string
   usuarioAdminNome: string; usuarioAdminEmail: string
+  adminRole: string | null
   totalExperimentos: number; totalUsuarios: number
 }
 interface Resumo {
@@ -359,7 +360,17 @@ function AdminTenants() {
                     </div>
                   </td>
                   <td style={{ padding: '12px 16px' }}>
-                    <span style={{ background: '#EEEDFE', color: '#3C3489', fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 999 }}>Admin</span>
+                    {t.adminRole ? (
+                      <span style={{
+                        background: t.adminRole.includes('ADMIN') ? '#EEEDFE' : '#EAF3DE',
+                        color:      t.adminRole.includes('ADMIN') ? '#3C3489' : '#27500A',
+                        fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 999
+                      }}>
+                        {t.adminRole.includes('ADMIN') ? 'Admin' : 'Produtor'}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>—</span>
+                    )}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{ background: bs.bg, color: bs.color, fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 999 }}>

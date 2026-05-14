@@ -18,7 +18,7 @@ import java.util.Optional;
 
 public interface InsumoRepository extends JpaRepository<Insumo, String> {
 
-    List<Insumo> findByTenantIdOrderByCategoriaAsc(Long tenantId);
+    List<Insumo> findByTenantIdOrderByCategoriaAscNomeAsc(Long tenantId);
 
     List<Insumo> findByCategoriaAndTenantId(String categoria, Long tenantId);
 
