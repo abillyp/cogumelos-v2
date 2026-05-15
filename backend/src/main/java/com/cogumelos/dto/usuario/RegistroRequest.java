@@ -11,12 +11,14 @@
 
 package com.cogumelos.dto.usuario;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
 public record RegistroRequest(
         @NotBlank String nome,
-        @NotBlank String nomeProdutor,  // ← novo
+        @NotBlank String nomeProdutor,
         @Email @NotBlank String email,
-        @NotBlank String senha
+        @NotBlank String senha,
+        @AssertTrue(message = "Você deve aceitar os termos de uso e a política de privacidade") boolean aceitouTermos
 ) {}

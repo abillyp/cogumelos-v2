@@ -141,10 +141,11 @@ class AuthControllerIntegrationTest {
         mockMvc.perform(post("/api/auth/registro")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(Map.of(
-                        "nome",          "Novo Usuário",
-                        "nomeProdutor",  "Cogumelos SP",
-                        "email",         "novo@test.com",
-                        "senha",         "senha123"
+                        "nome",           "Novo Usuário",
+                        "nomeProdutor",   "Cogumelos SP",
+                        "email",          "novo@test.com",
+                        "senha",          "senha123",
+                        "aceitouTermos",  true
                 ))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.token").isNotEmpty())
@@ -157,10 +158,11 @@ class AuthControllerIntegrationTest {
         mockMvc.perform(post("/api/auth/registro")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(Map.of(
-                        "nome",         "Billy Duplicado",
-                        "nomeProdutor", "Empresa X",
-                        "email",        "billy@test.com", // já existe
-                        "senha",        "senha123"
+                        "nome",          "Billy Duplicado",
+                        "nomeProdutor",  "Empresa X",
+                        "email",         "billy@test.com", // já existe
+                        "senha",         "senha123",
+                        "aceitouTermos", true
                 ))))
                 .andExpect(status().isBadRequest());
     }

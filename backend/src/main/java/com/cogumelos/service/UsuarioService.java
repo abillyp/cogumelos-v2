@@ -19,6 +19,8 @@ import com.cogumelos.dto.usuario.RegistroRequest;
 import com.cogumelos.dto.usuario.UsuarioResponse;
 import com.cogumelos.dto.usuario.UsuarioUpdateRequest;
 import com.cogumelos.enums.Role;
+import com.cogumelos.repository.ExperimentoRepository;
+import com.cogumelos.repository.FormulacaoRepository;
 import com.cogumelos.repository.PasswordResetTokenRepository;
 import com.cogumelos.repository.TenantRepository;
 import com.cogumelos.repository.UsuarioRepository;
@@ -31,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -44,14 +47,21 @@ public class UsuarioService {
     private final PasswordResetTokenRepository passwordResetRepo;
     private final EmailService emailService;
     private final AuthService authService;
+    private final ExperimentoRepository experimentoRepo;
+    private final FormulacaoRepository formulacaoRepo;
 
-    public UsuarioService(UsuarioRepository usuarioRepository, BCryptPasswordEncoder encoder, TenantRepository tenantRepo, PasswordResetTokenRepository passwordResetRepo, EmailService emailService, AuthService authService) {
+    public UsuarioService(UsuarioRepository usuarioRepository, BCryptPasswordEncoder encoder,
+                          TenantRepository tenantRepo, PasswordResetTokenRepository passwordResetRepo,
+                          EmailService emailService, AuthService authService,
+                          ExperimentoRepository experimentoRepo, FormulacaoRepository formulacaoRepo) {
         this.usuarioRepository = usuarioRepository;
         this.encoder = encoder;
         this.tenantRepo = tenantRepo;
         this.passwordResetRepo = passwordResetRepo;
         this.emailService = emailService;
         this.authService = authService;
+        this.experimentoRepo = experimentoRepo;
+        this.formulacaoRepo = formulacaoRepo;
     }
 
     public UsuarioResponse atualizar(String id,
@@ -153,11 +163,57 @@ public class UsuarioService {
         return "Senha redefinida com sucesso.";
     }
 
+    @Transactional(readOnly = true)
+    public Map<String, Object> exportarDados(String userId) {
+        Usuario u = usuarioRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        Long tenantId = u.getTenant().getId();
+
+        var experimentos = experimentoRepo.findByTenantIdOrderByDataPreparoDesc(tenantId)
+                .stream().map(e -> Map.of(
+                        "codigo", (Object) e.getCodigo(),
+                        "dataPreparo", e.getDataPreparo().toString(),
+                        "fase", e.getFaseAtual().name(),
+                        "totalBlocos", e.getTotalBlocos()
+                )).toList();
+
+        var formulacoes = formulacaoRepo.findByTenantIdOrderByCriadoEmDesc(tenantId)
+                .stream().map(f -> Map.of(
+                        "nome", (Object) f.getNome(),
+                        "criadoEm", f.getCriadoEm().toString(),
+                        "status", f.getStatus().name()
+                )).toList();
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("exportadoEm", LocalDateTime.now().toString());
+        result.put("usuario", Map.of(
+                "nome", u.getNome(),
+                "email", u.getEmail(),
+                "criadoEm", u.getCriadoEm().toString()
+        ));
+        result.put("tenant", Map.of(
+                "nome", u.getTenant().getNome(),
+                "plano", u.getTenant().getPlano().name(),
+                "criadoEm", u.getTenant().getCriadoEm().toString()
+        ));
+        result.put("totalExperimentos", experimentos.size());
+        result.put("experimentos", experimentos);
+        result.put("totalFormulacoes", formulacoes.size());
+        result.put("formulacoes", formulacoes);
+        return result;
+    }
+
+    private static String maskEmail(String email) {
+        if (email == null || !email.contains("@")) return "***";
+        int at = email.indexOf('@');
+        return email.charAt(0) + "***" + email.substring(at);
+    }
+
     @Transactional
     public String esqueciSenha(Map<String, String> body) {
         try {
             String email = body.get("email");
-            log.info("=== esqueci-senha: {}", email);
+            log.info("=== esqueci-senha: {}", maskEmail(email));
             usuarioRepository.findByEmail(email).ifPresent(u -> {
                 if (u.getSenhaHash().equals("OAUTH2_NO_PASSWORD")) return;
                 passwordResetRepo.deleteByUsuarioId(u.getId());

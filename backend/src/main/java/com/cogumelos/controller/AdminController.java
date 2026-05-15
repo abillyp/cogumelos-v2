@@ -17,6 +17,7 @@ import com.cogumelos.dto.usuario.UsuarioUpdateRequest;
 import com.cogumelos.security.TenantContext;
 import com.cogumelos.service.TenantService;
 import com.cogumelos.service.UsuarioService;
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,7 +60,15 @@ public class AdminController {
     @PreAuthorize("hasAnyRole('ADMIN'")
     @DeleteMapping("/usuarios/{id}")
     public ResponseEntity<Void> deletar(@PathVariable String id) {
-        usuarioService.deletarUsuario(id,TenantContext.getTenantId());
+        usuarioService.deletarUsuario(id, TenantContext.getTenantId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Encerrar conta e apagar todos os dados (LGPD Art. 18 — Direito ao Esquecimento)",
+               description = "Remove permanentemente todos os dados do tenant: experimentos, formulações, insumos, usuários e a conta. Ação irreversível.")
+    @DeleteMapping("/minha-conta")
+    public ResponseEntity<Void> encerrarConta() {
+        tenantService.encerrarConta(TenantContext.getTenantId());
         return ResponseEntity.noContent().build();
     }
 }

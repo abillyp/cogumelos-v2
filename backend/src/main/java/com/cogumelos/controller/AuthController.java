@@ -63,6 +63,14 @@ public class AuthController {
         this.tenantService  = tenantService;
     }
 
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    private static String maskEmail(String email) {
+        if (email == null || !email.contains("@")) return "***";
+        int at = email.indexOf('@');
+        return email.charAt(0) + "***" + email.substring(at);
+    }
+
     // ── Helpers de cookie ────────────────────────────────────────────────────
 
     private void setRefreshCookie(HttpServletResponse response, String token) {
@@ -108,7 +116,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req,
                                    HttpServletResponse response) {
-        log.info("=== login chamado: {}", req.email());
+        log.info("=== login chamado: {}", maskEmail(req.email()));
         Map<String, Object> data = usuarioService.login(req, refreshHours);
         setRefreshCookie(response, (String) data.get("refreshToken"));
         data.remove("refreshToken"); // não expõe no body
@@ -186,5 +194,13 @@ public class AuthController {
     public ResponseEntity<?> me(org.springframework.security.core.Authentication auth) {
         String userId = (String) auth.getPrincipal();
         return ResponseEntity.ok(usuarioService.me(userId));
+    }
+
+    @Operation(summary = "Exportar meus dados (LGPD Art. 18 — Portabilidade)",
+               description = "Retorna todos os dados pessoais e operacionais associados ao titular em formato estruturado.")
+    @GetMapping("/meus-dados")
+    public ResponseEntity<?> meusDados(org.springframework.security.core.Authentication auth) {
+        String userId = (String) auth.getPrincipal();
+        return ResponseEntity.ok(usuarioService.exportarDados(userId));
     }
 }

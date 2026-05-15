@@ -49,4 +49,7 @@ public class Tenant {
     @CreationTimestamp
     private LocalDateTime criadoEm;
 
+    @Column(name = "aceitou_termos_em")
+    private LocalDateTime aceitouTermosEm;
+
 }

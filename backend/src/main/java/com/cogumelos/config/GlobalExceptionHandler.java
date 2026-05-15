@@ -35,7 +35,6 @@ class GlobalExceptionHandler {
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> handleRuntime(RuntimeException ex) {
         String msg = ex.getMessage();
-        ex.printStackTrace();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
             .body(Map.of("erro", msg != null ? msg : "Requisição inválida"));
     }
@@ -68,9 +67,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleGeneric(Exception ex) {
-        log.error("Erro interno: {}", ex.getMessage(), ex);  // já tem isso
-        // adiciona print do stack trace completo
-        ex.printStackTrace();
+        log.error("Erro interno: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("erro", "Erro interno. Tente novamente."));
     }

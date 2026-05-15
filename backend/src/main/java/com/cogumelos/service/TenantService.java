@@ -23,7 +23,10 @@ import com.cogumelos.enums.PlanoType;
 import com.cogumelos.enums.Role;
 import com.cogumelos.enums.StatusTenant;
 import com.cogumelos.repository.ExperimentoRepository;
+import com.cogumelos.repository.FormulacaoRepository;
 import com.cogumelos.repository.InsumoRepository;
+import com.cogumelos.repository.PasswordResetTokenRepository;
+import com.cogumelos.repository.RefreshTokenRepository;
 import com.cogumelos.repository.TenantRepository;
 import com.cogumelos.repository.UsuarioRepository;
 import com.cogumelos.security.TenantContext;
@@ -35,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -55,15 +59,24 @@ public class TenantService {
     private final UsuarioRepository usuarioRepository;
     private final AuthService  authService;
     private final ExperimentoRepository  experimentoRepo;
+    private final FormulacaoRepository formulacaoRepo;
+    private final RefreshTokenRepository refreshTokenRepo;
+    private final PasswordResetTokenRepository passwordResetRepo;
 
 
-    public TenantService(TenantRepository tenantRepo, InsumoRepository insumoRepo, UsuarioRepository repo, BCryptPasswordEncoder encoder, UsuarioService usuarioService, AuthService authService, ExperimentoRepository experimentoRepo) {
+    public TenantService(TenantRepository tenantRepo, InsumoRepository insumoRepo, UsuarioRepository repo,
+                         BCryptPasswordEncoder encoder, UsuarioService usuarioService, AuthService authService,
+                         ExperimentoRepository experimentoRepo, FormulacaoRepository formulacaoRepo,
+                         RefreshTokenRepository refreshTokenRepo, PasswordResetTokenRepository passwordResetRepo) {
         this.tenantRepo = tenantRepo;
         this.insumoRepo = insumoRepo;
         this.usuarioRepository = repo;
         this.usuarioService = usuarioService;
         this.authService = authService;
         this.experimentoRepo = experimentoRepo;
+        this.formulacaoRepo = formulacaoRepo;
+        this.refreshTokenRepo = refreshTokenRepo;
+        this.passwordResetRepo = passwordResetRepo;
     }
 
     /**
@@ -112,6 +125,7 @@ public class TenantService {
             tenant.setPlano(PlanoType.BASICO);
             tenant.setStatus(com.cogumelos.enums.StatusTenant.TRIAL);
             tenant.setTrialExpira(java.time.LocalDate.now().plusDays(14));
+            tenant.setAceitouTermosEm(LocalDateTime.now());
             tenantRepo.save(tenant);
 
             // Copia insumos do catálogo padrão
@@ -144,11 +158,12 @@ public class TenantService {
         t.setTrialExpira(LocalDate.now().plusDays(QUATORZE));
         tenantRepo.save(t);
 
-        RegistroRequest registroRequest = new RegistroRequest(req.nome(), req.nomeAdmin(), req.email(), req.senhaAdmin());
+        RegistroRequest registroRequest = new RegistroRequest(req.nome(), req.nomeAdmin(), req.email(), req.senhaAdmin(), true);
 
         UsuarioResponse usuarioResponse = usuarioService.criar(registroRequest, Role.ADMIN_TENANT);
 
-        Usuario admin = UsuarioResponse.to(usuarioResponse);
+        Usuario admin = usuarioRepository.findById(usuarioResponse.id())
+                .orElseThrow(() -> new RuntimeException("Erro ao criar usuário admin"));
 
         return TenantAdminResponse.from(t, admin, 0L, 1L);
     }
@@ -235,6 +250,34 @@ public class TenantService {
                 "total", total, "emTrial", emTrial, "ativos", ativos,
                 "expirados", expirados, "expira3dias", expira3dias
         );
+    }
+
+    @Transactional
+    public void encerrarConta(Long tenantId) {
+        Tenant tenant = tenantRepo.findById(tenantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant não encontrado"));
+
+        // 1. Experimentos — JPA cascadeia: colheitas, monitoramentos, custos, fases
+        experimentoRepo.deleteAll(experimentoRepo.findByTenantIdOrderByDataPreparoDesc(tenantId));
+
+        // 2. Formulacoes — JPA cascadeia: formulacaoInsumos
+        formulacaoRepo.deleteAll(formulacaoRepo.findByTenantIdOrderByCriadoEmDesc(tenantId));
+
+        // 3. Insumos
+        insumoRepo.deleteAll(insumoRepo.findByTenantIdOrderByNomeAsc(tenantId));
+
+        // 4. Tokens de sessão e reset de senha por usuário
+        List<Usuario> usuarios = usuarioRepository.findByTenantId(tenantId);
+        for (Usuario u : usuarios) {
+            refreshTokenRepo.deleteAllByUsuarioId(u.getId());
+            passwordResetRepo.deleteByUsuarioId(u.getId());
+        }
+
+        // 5. Usuários e tenant
+        usuarioRepository.deleteAll(usuarios);
+        tenantRepo.delete(tenant);
+
+        log.info("Conta encerrada (LGPD Art. 18 VI): tenant {}", tenantId);
     }
 
     @Transactional
