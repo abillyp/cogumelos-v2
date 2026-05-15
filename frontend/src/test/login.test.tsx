@@ -57,9 +57,8 @@ describe('LoginPage', () => {
   })
 
   it('deve chamar api.auth.login com credenciais corretas', async () => {
-    // ✅ refreshToken removido do retorno — agora vem via HttpOnly cookie
+    // token e refreshToken estão em HttpOnly cookies — body só retorna dados do usuário
     vi.mocked(api.auth.login).mockResolvedValue({
-      token: 'token-123',
       id: 'user-1', nome: 'Billy', email: 'billy@test.com', role: 'ADMIN_TENANT',
     } as any)
 
@@ -78,12 +77,11 @@ describe('LoginPage', () => {
   })
 
   it('deve chamar login() do contexto após autenticação bem-sucedida', async () => {
-    // ✅ refreshToken removido do retorno — agora vem via HttpOnly cookie
-    const userData = {
-      token: 'token-123',
+    // token está em HttpOnly cookie — body retorna apenas dados do usuário
+    vi.mocked(api.auth.login).mockResolvedValue({
       id: 'user-1', nome: 'Billy', email: 'billy@test.com', role: 'ADMIN_TENANT',
-    }
-    vi.mocked(api.auth.login).mockResolvedValue(userData as any)
+      loginType: 'EMAIL',
+    } as any)
 
     render(<LoginPage />)
     await userEvent.type(screen.getByPlaceholderText('seu@email.com'), 'billy@test.com')
@@ -91,9 +89,8 @@ describe('LoginPage', () => {
     await userEvent.click(screen.getAllByRole('button').find(b => b.getAttribute('type') === 'submit')!)
 
     await waitFor(() => {
-      // ✅ assinatura nova: login(token, user) — sem refreshToken
       expect(mockLogin).toHaveBeenCalledWith(
-        'token-123',
+        undefined, // token vem via cookie — não está no body
         expect.objectContaining({ email: 'billy@test.com' })
       )
       expect(mockPush).toHaveBeenCalledWith('/')
@@ -119,10 +116,8 @@ describe('LoginPage', () => {
     expect(screen.queryByText(/admin123/i)).not.toBeInTheDocument()
   })
 
-  it('deve registrar novo usuário com todos os campos', async () => {
-    // ✅ refreshToken removido do retorno — agora vem via HttpOnly cookie
+  it('deve registrar novo usuário com todos os campos incluindo aceite dos termos', async () => {
     vi.mocked(api.auth.registro).mockResolvedValue({
-      token: 'token-novo',
       id: 'user-novo', nome: 'Novo', email: 'novo@test.com', role: 'ADMIN_TENANT',
     } as any)
 
@@ -136,16 +131,41 @@ describe('LoginPage', () => {
     await userEvent.type(screen.getByPlaceholderText('seu@email.com'), 'novo@test.com')
     await userEvent.type(screen.getByPlaceholderText('Mínimo 6 caracteres'), 'senha123')
 
+    // marcar o checkbox de aceite dos termos (obrigatório pela LGPD)
+    const checkbox = screen.getByRole('checkbox')
+    await userEvent.click(checkbox)
+
     const botoes = screen.getAllByText('Criar conta')
     await userEvent.click(botoes[botoes.length - 1])
 
     await waitFor(() => {
       expect(api.auth.registro).toHaveBeenCalledWith({
-        nome:         'Novo Usuário',
-        nomeProdutor: 'Empresa X',
-        email:        'novo@test.com',
-        senha:        'senha123',
+        nome:          'Novo Usuário',
+        nomeProdutor:  'Empresa X',
+        email:         'novo@test.com',
+        senha:         'senha123',
+        aceitouTermos: true,
       })
+    })
+  })
+
+  it('não deve submeter o registro sem aceitar os termos', async () => {
+    render(<LoginPage />)
+
+    const abas = screen.getAllByText('Criar conta')
+    await userEvent.click(abas[0])
+
+    await userEvent.type(screen.getByPlaceholderText('Seu nome completo'), 'Novo Usuário')
+    await userEvent.type(screen.getByPlaceholderText('seu@email.com'), 'novo@test.com')
+    await userEvent.type(screen.getByPlaceholderText('Mínimo 6 caracteres'), 'senha123')
+
+    // NÃO marca o checkbox
+    const botoes = screen.getAllByText('Criar conta')
+    await userEvent.click(botoes[botoes.length - 1])
+
+    await waitFor(() => {
+      expect(screen.getByText('Você deve aceitar os termos de uso e a política de privacidade.')).toBeInTheDocument()
+      expect(api.auth.registro).not.toHaveBeenCalled()
     })
   })
 })

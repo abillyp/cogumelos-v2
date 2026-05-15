@@ -15,13 +15,68 @@ export default function PerfilPage() {
 }
 
 function Perfil() {
-  const { user, logout, isAdmin } = useAuth()
+  const { user, logout, isAdmin, login } = useAuth()
   const router = useRouter()
+  const [nomeEditando, setNomeEditando] = useState(false)
+  const [novoNome, setNovoNome]         = useState('')
+  const [nomeErro, setNomeErro]         = useState('')
+  const [nomeSucesso, setNomeSucesso]   = useState(false)
+  const [nomeLoading, setNomeLoading]   = useState(false)
+  const [exportando, setExportando]     = useState(false)
+  const [confirmandoEncerrar, setConfirmandoEncerrar] = useState(false)
+  const [encerrando, setEncerrando]     = useState(false)
+  const [encerrarErro, setEncerrarErro] = useState('')
 
   if (!user) return null
 
   const inicial = user.nome.charAt(0).toUpperCase()
   const isOAuth2 = user.loginType === 'GOOGLE'
+
+  async function salvarNome() {
+    setNomeErro('')
+    if (!novoNome.trim()) { setNomeErro('Nome não pode ser vazio.'); return }
+    setNomeLoading(true)
+    try {
+      const data: any = await api.auth.atualizarPerfil(novoNome.trim())
+      login('', { ...user, nome: data.nome })
+      setNomeSucesso(true)
+      setTimeout(() => { setNomeSucesso(false); setNomeEditando(false) }, 1500)
+    } catch (e: any) {
+      setNomeErro(e.message || 'Erro ao salvar.')
+    } finally {
+      setNomeLoading(false)
+    }
+  }
+
+  async function exportarDados() {
+    setExportando(true)
+    try {
+      const data = await api.auth.meusDados()
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.href     = url
+      a.download = `meus-dados-cogumelos-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e: any) {
+      alert(e.message || 'Erro ao exportar dados.')
+    } finally {
+      setExportando(false)
+    }
+  }
+
+  async function encerrarConta() {
+    setEncerrarErro('')
+    setEncerrando(true)
+    try {
+      await api.auth.encerrarConta()
+      logout()
+    } catch (e: any) {
+      setEncerrarErro(e.message || 'Erro ao encerrar conta.')
+      setEncerrando(false)
+    }
+  }
 
   return (
     <div style={{ padding: '24px 16px', maxWidth: 480, margin: '0 auto' }}>
@@ -54,8 +109,43 @@ function Perfil() {
         <p style={{ fontSize: 11, fontWeight: 700, color: '#bbb', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 12 }}>
           Conta
         </p>
+
+        {/* Nome — editável */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '0.5px solid #F0F0F0' }}>
+          <span style={{ fontSize: 14, color: '#888' }}>Nome</span>
+          {nomeEditando ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+              <input
+                value={novoNome}
+                onChange={e => setNovoNome(e.target.value)}
+                style={{ padding: '6px 10px', borderRadius: 8, border: '1.5px solid #E8E8E8', fontSize: 14, width: 180 }}
+                autoFocus
+              />
+              {nomeErro && <span style={{ fontSize: 12, color: 'var(--red)' }}>{nomeErro}</span>}
+              {nomeSucesso && <span style={{ fontSize: 12, color: 'var(--green)' }}>Salvo!</span>}
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => { setNomeEditando(false); setNomeErro('') }}
+                  style={{ fontSize: 12, color: '#888', background: 'none', border: 'none', cursor: 'pointer' }}>
+                  Cancelar
+                </button>
+                <button onClick={salvarNome} disabled={nomeLoading}
+                  style={{ fontSize: 12, fontWeight: 700, color: 'var(--purple)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                  {nomeLoading ? 'Salvando...' : 'Salvar'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>{user.nome}</span>
+              <button onClick={() => { setNovoNome(user.nome); setNomeEditando(true) }}
+                style={{ fontSize: 12, color: 'var(--purple)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                Editar
+              </button>
+            </div>
+          )}
+        </div>
+
         {[
-          { label: 'Nome', value: user.nome },
           { label: 'Email', value: user.email },
           { label: 'Perfil', value: user.role },
         ].map(({ label, value }) => (
@@ -98,6 +188,64 @@ function Perfil() {
 
       {/* Alterar senha — só para usuários email/senha */}
       {!isOAuth2 && <AlterarSenha />}
+
+      {/* LGPD — Meus dados */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: '#bbb', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 12 }}>
+          Privacidade (LGPD)
+        </p>
+        <button
+          onClick={exportarDados}
+          disabled={exportando}
+          style={{
+            width: '100%', display: 'flex', justifyContent: 'space-between',
+            alignItems: 'center', padding: '12px 0',
+            borderBottom: '0.5px solid #F0F0F0', background: 'none',
+            border: 'none', cursor: 'pointer',
+          }}
+        >
+          <span style={{ fontSize: 14, color: '#111' }}>
+            Exportar meus dados
+          </span>
+          <span style={{ fontSize: 12, color: '#888' }}>{exportando ? 'Baixando...' : '.json'}</span>
+        </button>
+
+        {!confirmandoEncerrar ? (
+          <button
+            onClick={() => setConfirmandoEncerrar(true)}
+            style={{
+              width: '100%', display: 'flex', justifyContent: 'space-between',
+              alignItems: 'center', padding: '12px 0',
+              background: 'none', border: 'none', cursor: 'pointer',
+            }}
+          >
+            <span style={{ fontSize: 14, color: 'var(--red)' }}>Encerrar conta e apagar dados</span>
+            <span style={{ color: '#bbb', fontSize: 16 }}>›</span>
+          </button>
+        ) : (
+          <div style={{ paddingTop: 12 }}>
+            <p style={{ fontSize: 13, color: '#333', marginBottom: 8, lineHeight: 1.5 }}>
+              Esta ação é <strong>irreversível</strong>. Todos os seus experimentos, formulações, insumos e dados serão apagados permanentemente.
+            </p>
+            {encerrarErro && <p style={{ fontSize: 13, color: 'var(--red)', marginBottom: 8 }}>{encerrarErro}</p>}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => { setConfirmandoEncerrar(false); setEncerrarErro('') }}
+                style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1.5px solid #E8E8E8', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#555' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={encerrarConta}
+                disabled={encerrando}
+                style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: 'var(--red)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#fff' }}
+              >
+                {encerrando ? 'Encerrando...' : 'Confirmar encerramento'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Botão sair */}
       <button

@@ -12,11 +12,33 @@
 package com.cogumelos.repository;
 
 import com.cogumelos.domain.Tenant;
+import com.cogumelos.enums.StatusTenant;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 public interface TenantRepository extends JpaRepository<Tenant, Long> {
     boolean existsByEmail(String email);
     Optional<Tenant> findByEmail(String email);
+
+    /**
+     * Retorna tenants EXPIRADO ou CANCELADO cuja data de expiração mais relevante
+     * (assinaturaExpira, ou trialExpira como fallback) é anterior ao limite.
+     * Usado pela rotina de purge de dados (LGPD — retenção máxima de dados).
+     */
+    @Query("""
+        SELECT t FROM Tenant t
+        WHERE t.status IN :statuses
+        AND t.email != 'sistema@cogumelos.app'
+        AND (
+            (t.assinaturaExpira IS NOT NULL AND t.assinaturaExpira < :limite)
+            OR (t.assinaturaExpira IS NULL AND t.trialExpira IS NOT NULL AND t.trialExpira < :limite)
+        )
+    """)
+    List<Tenant> findExpiradosParaPurge(@Param("statuses") List<StatusTenant> statuses,
+                                        @Param("limite") LocalDate limite);
 }

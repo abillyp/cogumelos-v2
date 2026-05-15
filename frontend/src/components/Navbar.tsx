@@ -96,6 +96,12 @@ export default function Navbar() {
                       </Link>
                     )}
                   </div>
+                  <div className="border-t border-gray-100 py-1">
+                    <Link href="/privacidade" onClick={() => setMenu(false)}
+                      className="block px-3 py-2 text-xs text-gray-400 hover:bg-gray-50">
+                      Privacidade & DPO
+                    </Link>
+                  </div>
                   <button onClick={logout}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors"
                     style={{ color: 'var(--red)' }}>

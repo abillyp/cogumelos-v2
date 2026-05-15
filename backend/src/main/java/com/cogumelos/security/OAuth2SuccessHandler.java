@@ -50,6 +50,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     @Value("${jwt.refresh-expiration-hours:8}")
     private int refreshHours;
 
+    @Value("${jwt.expiration:900000}")
+    private long jwtExpiration;
+
     @Value("${cookie.secure:true}")
     private boolean cookieSecure;
 
@@ -98,20 +101,28 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         );
         String refreshToken = criarRefreshToken(usuario);
 
-        // ✅ seta o refreshToken como HttpOnly cookie — não expõe na URL
-        ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
+        // access token em HttpOnly cookie — não expõe na URL
+        ResponseCookie accessCookie = ResponseCookie.from("accessToken", accessToken)
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .path("/api")
+                .maxAge(Duration.ofMillis(jwtExpiration))
+                .sameSite("Lax") // Lax necessário para funcionar após redirect OAuth2
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
+
+        // refresh token em HttpOnly cookie
+        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", refreshToken)
                 .httpOnly(true)
                 .secure(cookieSecure)
                 .path("/api/auth")
                 .maxAge(Duration.ofHours(refreshHours))
-                .sameSite("Lax") // ✅ Lax em vez de Strict para funcionar após redirect OAuth2
+                .sameSite("Lax")
                 .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
 
-        // ✅ refreshToken removido da URL
-        response.sendRedirect(frontendUrl + "/oauth2/callback"
-                + "?token=" + accessToken
-                + "&loginType=GOOGLE");
+        // token removido da URL — callback busca dados via /api/auth/me com o cookie
+        response.sendRedirect(frontendUrl + "/oauth2/callback?loginType=GOOGLE");
     }
 
     private Usuario criarUsuario(String email, String nome) {

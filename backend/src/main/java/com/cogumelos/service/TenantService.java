@@ -31,7 +31,9 @@ import com.cogumelos.repository.TenantRepository;
 import com.cogumelos.repository.UsuarioRepository;
 import com.cogumelos.security.TenantContext;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,6 +54,9 @@ public class TenantService {
 
     private static final String SISTEMA_EMAIL = "sistema@cogumelos.app";
     private static final long QUATORZE = 14;
+
+    @Value("${app.retencao-dias:90}")
+    private int retencaoDias;
 
     private final UsuarioService  usuarioService;
     private final TenantRepository tenantRepo;
@@ -287,5 +292,33 @@ public class TenantService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Não é possível excluir um tenant com usuários ativos. Remova todos os usuários antes de excluir.");
         tenantRepo.deleteById(tenantId);
+    }
+
+    /**
+     * Purge automático de dados de tenants expirados ou cancelados (LGPD — retenção de dados).
+     * Executa todo dia às 03:00. Remove permanentemente dados de contas inativas há mais de
+     * {@code app.retencao-dias} dias (padrão: 90 dias).
+     */
+    @Scheduled(cron = "0 0 3 * * *")
+    public void purgarTenantExpirados() {
+        LocalDate limite = LocalDate.now().minusDays(retencaoDias);
+        List<Tenant> expirados = tenantRepo.findExpiradosParaPurge(
+                List.of(StatusTenant.EXPIRADO, StatusTenant.CANCELADO), limite);
+
+        if (expirados.isEmpty()) return;
+
+        log.info("LGPD purge: {} tenant(s) elegíveis para remoção (expirados há >{} dias).",
+                expirados.size(), retencaoDias);
+
+        for (Tenant t : expirados) {
+            try {
+                log.info("LGPD purge: removendo tenant {} ({}).", t.getId(), t.getEmail());
+                encerrarConta(t.getId());
+            } catch (Exception e) {
+                log.error("LGPD purge: erro ao remover tenant {} — {}.", t.getId(), e.getMessage());
+            }
+        }
+
+        log.info("LGPD purge: concluído.");
     }
 }

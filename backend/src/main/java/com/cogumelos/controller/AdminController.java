@@ -56,8 +56,7 @@ public class AdminController {
         return usuarioService.atualizar(id, req);
     }
 
-    @Transactional
-    @PreAuthorize("hasAnyRole('ADMIN'")
+    @PreAuthorize("hasAnyRole('ADMIN')")
     @DeleteMapping("/usuarios/{id}")
     public ResponseEntity<Void> deletar(@PathVariable String id) {
         usuarioService.deletarUsuario(id, TenantContext.getTenantId());

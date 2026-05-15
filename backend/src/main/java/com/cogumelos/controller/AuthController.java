@@ -53,6 +53,9 @@ public class AuthController {
     @Value("${jwt.refresh-expiration-hours:8}")
     private int refreshHours;
 
+    @Value("${jwt.expiration:900000}")
+    private long jwtExpiration;
+
     @Value("${cookie.secure:true}")
     private boolean cookieSecure;
 
@@ -72,6 +75,28 @@ public class AuthController {
     }
 
     // ── Helpers de cookie ────────────────────────────────────────────────────
+
+    private void setAccessCookie(HttpServletResponse response, String token) {
+        ResponseCookie cookie = ResponseCookie.from("accessToken", token)
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .path("/api")
+                .maxAge(Duration.ofMillis(jwtExpiration))
+                .sameSite("Strict")
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
+
+    private void clearAccessCookie(HttpServletResponse response) {
+        ResponseCookie cookie = ResponseCookie.from("accessToken", "")
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .path("/api")
+                .maxAge(0)
+                .sameSite("Strict")
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
 
     private void setRefreshCookie(HttpServletResponse response, String token) {
         ResponseCookie cookie = ResponseCookie.from("refreshToken", token)
@@ -118,8 +143,10 @@ public class AuthController {
                                    HttpServletResponse response) {
         log.info("=== login chamado: {}", maskEmail(req.email()));
         Map<String, Object> data = usuarioService.login(req, refreshHours);
+        setAccessCookie(response, (String) data.get("token"));
         setRefreshCookie(response, (String) data.get("refreshToken"));
-        data.remove("refreshToken"); // não expõe no body
+        data.remove("token");
+        data.remove("refreshToken");
         return ResponseEntity.ok(data);
     }
 
@@ -133,7 +160,9 @@ public class AuthController {
     public ResponseEntity<?> registro(@Valid @RequestBody RegistroRequest req,
                                       HttpServletResponse response) {
         Map<String, Object> data = tenantService.registro(req, refreshHours);
+        setAccessCookie(response, (String) data.get("token"));
         setRefreshCookie(response, (String) data.get("refreshToken"));
+        data.remove("token");
         data.remove("refreshToken");
         return ResponseEntity.status(201).body(data);
     }
@@ -152,7 +181,9 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("erro", "Refresh token ausente"));
         Map<String, Object> data = authService.refresh(rt, refreshHours);
+        setAccessCookie(response, (String) data.get("token"));
         setRefreshCookie(response, (String) data.get("refreshToken"));
+        data.remove("token");
         data.remove("refreshToken");
         return ResponseEntity.ok(data);
     }
@@ -163,6 +194,7 @@ public class AuthController {
                                        HttpServletResponse response) {
         String rt = extractRefreshCookie(request);
         if (rt != null) authService.logout(rt);
+        clearAccessCookie(response);
         clearRefreshCookie(response);
         return ResponseEntity.noContent().build();
     }
@@ -194,6 +226,15 @@ public class AuthController {
     public ResponseEntity<?> me(org.springframework.security.core.Authentication auth) {
         String userId = (String) auth.getPrincipal();
         return ResponseEntity.ok(usuarioService.me(userId));
+    }
+
+    @Operation(summary = "Atualizar próprio perfil (LGPD Art. 18 III — Correção de dados)")
+    @PatchMapping("/me")
+    public ResponseEntity<?> atualizarPerfil(
+            @RequestBody Map<String, String> body,
+            org.springframework.security.core.Authentication auth) {
+        String userId = (String) auth.getPrincipal();
+        return ResponseEntity.ok(usuarioService.atualizarProprioPerfil(userId, body.get("nome")));
     }
 
     @Operation(summary = "Exportar meus dados (LGPD Art. 18 — Portabilidade)",

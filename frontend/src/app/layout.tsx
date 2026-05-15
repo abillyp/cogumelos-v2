@@ -8,6 +8,7 @@ import './globals.css'
 import { AuthProvider } from '@/hooks/useAuth'
 import Navbar from '@/components/Navbar'
 import MobileTabBar from '@/components/MobileTabBar'
+import Footer from '@/components/Footer'
 
 export const metadata: Metadata = {
   title: 'Cogumelos.app',
@@ -55,6 +56,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main className="sm:px-4 sm:py-6" style={{ paddingBottom: 80 }}>
             {children}
           </main>
+          {/* Footer com links legais e DPO — apenas desktop */}
+          <div className="hidden sm:block">
+            <Footer />
+          </div>
           <MobileTabBar />
         </AuthProvider>
       </body>

@@ -86,10 +86,11 @@ class AuthControllerIntegrationTest {
                         "senha", "senha123"
                 ))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(cookie().exists("accessToken"))
                 .andExpect(cookie().exists("refreshToken"))
                 .andExpect(jsonPath("$.email").value("billy@test.com"))
-                .andExpect(jsonPath("$.role").value("ADMIN_TENANT"));
+                .andExpect(jsonPath("$.role").value("ADMIN_TENANT"))
+                .andExpect(jsonPath("$.token").doesNotExist());
     }
 
     @Test
@@ -148,8 +149,10 @@ class AuthControllerIntegrationTest {
                         "aceitouTermos",  true
                 ))))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.token").isNotEmpty())
-                .andExpect(jsonPath("$.role").value("ADMIN_TENANT"));
+                .andExpect(cookie().exists("accessToken"))
+                .andExpect(cookie().exists("refreshToken"))
+                .andExpect(jsonPath("$.role").value("ADMIN_TENANT"))
+                .andExpect(jsonPath("$.token").doesNotExist());
     }
 
     @Test
@@ -184,8 +187,9 @@ class AuthControllerIntegrationTest {
         mockMvc.perform(post("/api/auth/refresh")
                 .cookie(refreshCookie))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").isNotEmpty())
-                .andExpect(cookie().exists("refreshToken"));
+                .andExpect(cookie().exists("accessToken"))
+                .andExpect(cookie().exists("refreshToken"))
+                .andExpect(jsonPath("$.token").doesNotExist());
     }
 
     @Test

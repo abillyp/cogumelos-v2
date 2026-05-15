@@ -5,42 +5,33 @@
 
 const BASE = '/api'
 
-function getToken(): string | null {
-  if (typeof window === 'undefined') return null
-  return localStorage.getItem('token')
-}
-
-export function saveTokens(token: string) {
-  localStorage.setItem('token', token)
-  // ✅ refreshToken não é mais salvo — está em HttpOnly cookie gerenciado pelo browser
+// access token e refresh token estão em HttpOnly cookies — não há nada sensível no localStorage
+export function saveTokens(_token?: string) {
+  // no-op: tokens gerenciados por HttpOnly cookies pelo backend
 }
 
 export function clearTokens() {
-  localStorage.removeItem('token')
   localStorage.removeItem('user')
-  // ✅ refreshToken é limpo pelo backend via Set-Cookie maxAge=0 no /logout
+  // accessToken e refreshToken são limpos pelo backend via Set-Cookie maxAge=0 no /logout
 }
 
 let refreshando = false
 let filaRefresh: Array<(token: string) => void> = []
 
-async function renovarToken(): Promise<string> {
+async function renovarToken(): Promise<void> {
   if (refreshando) {
-    return new Promise(resolve => filaRefresh.push(resolve))
+    return new Promise(resolve => filaRefresh.push(resolve as any))
   }
   refreshando = true
   try {
     const res = await fetch(`${BASE}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include', // ✅ envia HttpOnly cookie automaticamente
+      credentials: 'include', // envia refreshToken cookie e recebe novo accessToken cookie
     })
     if (!res.ok) throw new Error('Refresh falhou')
-    const data = await res.json()
-    saveTokens(data.token)
-    filaRefresh.forEach(cb => cb(data.token))
+    filaRefresh.forEach(cb => cb(''))
     filaRefresh = []
-    return data.token
   } catch {
     clearTokens()
     window.location.href = '/login'
@@ -51,13 +42,9 @@ async function renovarToken(): Promise<string> {
 }
 
 async function req<T>(path: string, options?: RequestInit, retry = true): Promise<T> {
-  const token = getToken()
   const res = await fetch(`${BASE}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    credentials: 'include', // ✅ envia cookies em todas as requisições
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include', // envia accessToken cookie automaticamente
     ...options,
   })
 
@@ -78,11 +65,8 @@ async function req<T>(path: string, options?: RequestInit, retry = true): Promis
 
   if (res.status === 401 && retry) {
     try {
-      const novoToken = await renovarToken()
-      return req<T>(path, {
-        ...options,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${novoToken}` },
-      }, false)
+      await renovarToken()
+      return req<T>(path, options, false) // repete com o novo accessToken cookie
     } catch { throw new Error('Sessão expirada') }
   }
 
@@ -97,22 +81,8 @@ async function req<T>(path: string, options?: RequestInit, retry = true): Promis
 
 export const api = {
   auth: {
-    login: (body: unknown) => req<any>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(body),
-      credentials: 'include',
-    }).then(data => {
-      if (data?.token) saveTokens(data.token)
-      return data
-    }),
-    registro: (body: unknown) => req<any>('/auth/registro', {
-      method: 'POST',
-      body: JSON.stringify(body),
-      credentials: 'include',
-    }).then(data => {
-      if (data?.token) saveTokens(data.token)
-      return data
-    }),
+    login:   (body: unknown) => req<any>('/auth/login',   { method: 'POST', body: JSON.stringify(body) }),
+    registro: (body: unknown) => req<any>('/auth/registro', { method: 'POST', body: JSON.stringify(body) }),
     logout: () => fetch(`${BASE}/auth/logout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -122,6 +92,9 @@ export const api = {
     esqueciSenha:   (email: string) => req('/auth/esqueci-senha', { method: 'POST', body: JSON.stringify({ email }) }),
     redefinirSenha: (token: string, novaSenha: string) => req('/auth/redefinir-senha', { method: 'POST', body: JSON.stringify({ token, novaSenha }) }),
     alterarSenha:   (senhaAtual: string, novaSenha: string) => req('/auth/alterar-senha', { method: 'PATCH', body: JSON.stringify({ senhaAtual, novaSenha }) }),
+    atualizarPerfil: (nome: string) => req('/auth/me', { method: 'PATCH', body: JSON.stringify({ nome }) }),
+    meusDados:      () => req('/auth/meus-dados'),
+    encerrarConta:  () => req('/admin/minha-conta', { method: 'DELETE' }),
   },
 
   admin: {

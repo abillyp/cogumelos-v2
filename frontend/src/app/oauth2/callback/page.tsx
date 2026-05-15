@@ -7,7 +7,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
-import { api, saveTokens } from '@/lib/api'
+import { api } from '@/lib/api'
 import { AuthUser } from '@/lib/types'
 
 function CallbackHandler() {
@@ -17,7 +17,6 @@ function CallbackHandler() {
   const [erro, setErro] = useState('')
 
   useEffect(() => {
-    const token     = params.get('token')
     const loginType = params.get('loginType') ?? 'GOOGLE'
     const erroParam = params.get('erro')
 
@@ -31,26 +30,17 @@ function CallbackHandler() {
       return
     }
 
-    if (!token) {
-      setErro('Token não recebido. Tente novamente.')
-      setTimeout(() => router.replace('/login'), 3000)
-      return
-    }
-
-    // ✅ refreshToken não vem mais pela URL — está no HttpOnly cookie setado pelo backend
-    saveTokens(token)
-
+    // access token está no HttpOnly cookie setado pelo backend — basta chamar /me
     api.auth.me()
       .then((data: any) => {
-        // ✅ assinatura nova: login(token, user) — sem refreshToken
-        login(token, {
+        login('', {
           id: data.id, nome: data.nome, email: data.email, role: data.role,
           loginType: loginType as 'GOOGLE' | 'EMAIL',
         } as AuthUser)
         router.replace('/')
       })
       .catch(() => {
-        setErro('Erro ao carregar dados do usuário.')
+        setErro('Erro ao carregar dados do usuário. Tente novamente.')
         setTimeout(() => router.replace('/login'), 3000)
       })
   }, [])

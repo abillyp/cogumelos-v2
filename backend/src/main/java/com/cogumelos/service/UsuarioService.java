@@ -126,6 +126,16 @@ public class UsuarioService {
     }
 
     @Transactional
+    public UsuarioResponse atualizarProprioPerfil(String userId, String novoNome) {
+        if (novoNome == null || novoNome.isBlank())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nome não pode ser vazio");
+        Usuario u = usuarioRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        u.setNome(novoNome.trim());
+        return UsuarioResponse.from(usuarioRepository.save(u));
+    }
+
+    @Transactional
     public String alterarSenha(String senhaAtual, String novaSenha, String userId) {
 
         Usuario u = usuarioRepository.findById(userId)

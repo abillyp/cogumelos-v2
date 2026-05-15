@@ -22,6 +22,7 @@ function LoginContent() {
   const [erro, setErro]         = useState('')
   const searchParams = useSearchParams()
   const [loading, setLoading]   = useState(false)
+  const [aceitouTermos, setAceitouTermos] = useState(false)
 
   useEffect(() => { if (user) router.push('/') }, [user])
 
@@ -38,12 +39,17 @@ function LoginContent() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    setErro(''); setLoading(true)
+    setErro('')
+    if (tab === 'registro' && !aceitouTermos) {
+      setErro('Você deve aceitar os termos de uso e a política de privacidade.')
+      return
+    }
+    setLoading(true)
   try {
     console.log('=== chamando login', { email, senha: '***' })
     const data: any = tab === 'login'
       ? await api.auth.login({ email, senha })
-      : await api.auth.registro({ nome, nomeProdutor, email, senha })
+      : await api.auth.registro({ nome, nomeProdutor, email, senha, aceitouTermos })
     console.log('=== response', data)
 
       login(data.token, {
@@ -101,7 +107,7 @@ function LoginContent() {
           {/* Abas login / registro */}
           <div style={{ display: 'flex', gap: 2, marginBottom: 16, background: '#F7F6F3', borderRadius: 12, padding: 3 }}>
             {(['login', 'registro'] as const).map(t => (
-              <button key={t} onClick={() => { setTab(t); setErro('') }} style={{
+              <button key={t} onClick={() => { setTab(t); setErro(''); setAceitouTermos(false) }} style={{
                 flex: 1, padding: '7px', borderRadius: 10, fontSize: 13, fontWeight: 600,
                 cursor: 'pointer', border: 'none', transition: 'all .15s',
                 background: tab === t ? '#fff' : 'transparent',
@@ -142,6 +148,27 @@ function LoginContent() {
                 minLength={tab === 'registro' ? 6 : undefined}
                 autoComplete={tab === 'login' ? 'current-password' : 'new-password'} />
             </div>
+
+            {tab === 'registro' && (
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={aceitouTermos}
+                  onChange={e => setAceitouTermos(e.target.checked)}
+                  style={{ marginTop: 2, flexShrink: 0 }}
+                />
+                <span style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>
+                  Li e aceito os{' '}
+                  <a href="/termos" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--purple)', textDecoration: 'underline' }}>
+                    Termos de Uso
+                  </a>
+                  {' '}e a{' '}
+                  <a href="/privacidade" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--purple)', textDecoration: 'underline' }}>
+                    Política de Privacidade
+                  </a>
+                </span>
+              </label>
+            )}
 
             {erro && (
               <div style={{ background: 'var(--red-l)', border: '1px solid #F7C1C1', borderRadius: 10, padding: '10px 12px', fontSize: 13, color: 'var(--red)' }}>

@@ -33,8 +33,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false)
   }, [])
 
-  function login(token: string, u: AuthUser) {
-    saveTokens(token) // ✅ refreshToken não passa mais aqui — está no HttpOnly cookie
+  function login(_token: string, u: AuthUser) {
+    // tokens gerenciados por HttpOnly cookies — apenas dados de UI no localStorage
     localStorage.setItem('user', JSON.stringify(u))
     setUser(u)
   }

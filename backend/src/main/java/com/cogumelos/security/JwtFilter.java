@@ -38,15 +38,30 @@ public class JwtFilter extends OncePerRequestFilter {
                                     FilterChain chain)
             throws ServletException, IOException {
 
-        String header = req.getHeader("Authorization");
+        // 1. Tenta cookie HttpOnly (mais seguro — imune a XSS)
+        String token = null;
+        if (req.getCookies() != null) {
+            for (jakarta.servlet.http.Cookie c : req.getCookies()) {
+                if ("accessToken".equals(c.getName())) {
+                    token = c.getValue();
+                    break;
+                }
+            }
+        }
 
-        if (header != null && header.startsWith("Bearer ")) {
+        // 2. Fallback: header Authorization (Swagger / clientes de API)
+        if (token == null) {
+            String header = req.getHeader("Authorization");
+            if (header != null && header.startsWith("Bearer ")) {
+                token = header.substring(7);
+            }
+        }
+
+        if (token != null) {
             try {
-                String token = header.substring(7);
-
                 if (jwtService.isValid(token)) {
 
-                    // 1. autentica no Spring Security
+                    // autentica no Spring Security
                     String userId = jwtService.getUserId(token);
                     String role   = jwtService.getRole(token);
 
@@ -56,14 +71,13 @@ public class JwtFilter extends OncePerRequestFilter {
                     );
                     SecurityContextHolder.getContext().setAuthentication(auth);
 
-                    // 2. popula TenantContext
+                    // popula TenantContext
                     Long tenantId = jwtService.extractTenantId(token);
                     String plano  = jwtService.extractPlano(token);
 
                     TenantContext.setTenantId(tenantId);
                     TenantContext.setPlano(plano);
                 }
-
             } catch (Exception ignored) {}
         }
 
