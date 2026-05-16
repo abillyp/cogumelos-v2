@@ -38,7 +38,7 @@ function Perfil() {
     setNomeLoading(true)
     try {
       const data: any = await api.auth.atualizarPerfil(novoNome.trim())
-      login('', { ...user, nome: data.nome })
+      login('', { ...user!, nome: data.nome })
       setNomeSucesso(true)
       setTimeout(() => { setNomeSucesso(false); setNomeEditando(false) }, 1500)
     } catch (e: any) {
