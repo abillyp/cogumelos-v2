@@ -2,7 +2,6 @@
 // Todos os direitos reservados.
 // Uso não autorizado é expressamente proibido. Ver arquivo LICENSE.
 // Contato: alessandro.billy@organico4you.com.br
-
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/hooks/useAuth'

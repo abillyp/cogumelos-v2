@@ -2,48 +2,17 @@
 // Todos os direitos reservados.
 // Uso não autorizado é expressamente proibido. Ver arquivo LICENSE.
 // Contato: alessandro.billy@organico4you.com.br
-
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 
 const tabs = [
-  {
-    href: '/',
-    label: 'Início',
-    color: '#534AB7',
-    bgActive: '#EEEDFE',
-    emoji: '🏠',
-  },
-  {
-    href: '/experimentos',
-    label: 'Lotes',
-    color: '#00A550',
-    bgActive: '#E3FFF0',
-    emoji: '🌱',
-  },
-  {
-    href: '/calculadora',
-    label: 'Calcular',
-    color: '#BA7517',
-    bgActive: '#FAEEDA',
-    emoji: '⚗️',
-  },
-  {
-    href: '/relatorio',
-    label: 'Relatório',
-    color: '#1F6FEB',
-    bgActive: '#E3F0FF',
-    emoji: '📊',
-  },
-  {
-    href: '/perfil',
-    label: 'Perfil',
-    color: '#FF3D00',
-    bgActive: '#FFF0EC',
-    emoji: '👤',
-  },
+  { href: '/',             label: 'Início',    color: '#534AB7', bgActive: '#EEEDFE', emoji: '🏠' },
+  { href: '/experimentos', label: 'Lotes',     color: '#00A550', bgActive: '#E3FFF0', emoji: '🌱' },
+  { href: '/calculadora',  label: 'Calcular',  color: '#BA7517', bgActive: '#FAEEDA', emoji: '⚗️' },
+  { href: '/relatorio',    label: 'Relatório', color: '#1F6FEB', bgActive: '#E3F0FF', emoji: '📊' },
+  { href: '/perfil',       label: 'Perfil',    color: '#FF3D00', bgActive: '#FFF0EC', emoji: '👤' },
 ]
 
 export default function MobileTabBar() {
@@ -54,7 +23,6 @@ export default function MobileTabBar() {
 
   return (
     <nav
-      className="sm:hidden"
       style={{
         position: 'fixed',
         bottom: 0,
@@ -69,9 +37,7 @@ export default function MobileTabBar() {
       }}
     >
       {tabs.map((tab) => {
-        const active = tab.href === '/'
-          ? path === '/'
-          : path.startsWith(tab.href)
+        const active = tab.href === '/' ? path === '/' : path.startsWith(tab.href)
         return (
           <Link
             key={tab.href}
@@ -88,7 +54,6 @@ export default function MobileTabBar() {
               transition: 'all .15s',
             }}
           >
-            {/* Ícone com fundo colorido quando ativo */}
             <div style={{
               width: 36,
               height: 28,

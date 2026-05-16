@@ -1,0 +1,1 @@
+ALTER TABLE tenants ADD COLUMN aceitou_termos_em TIMESTAMP;

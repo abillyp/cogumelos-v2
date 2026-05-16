@@ -1,138 +1,280 @@
 // Copyright (c) 2026 Alessandro Billy Palma — cogumelos.app
 // Todos os direitos reservados.
 
+import Link from 'next/link'
+
 export default function PrivacidadePage() {
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 24px', fontFamily: 'Arial, sans-serif', color: '#333', lineHeight: 1.7 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 800, color: '#111', marginBottom: 4 }}>Politica de Privacidade</h1>
-      <p style={{ fontSize: 13, color: '#888', marginBottom: 32 }}>
-        Última atualização: maio de 2026 — Em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018 — LGPD)
+    <div style={{ maxWidth: 680, margin: '0 auto', padding: '48px 24px 80px', fontFamily: 'Georgia, serif', color: '#222', lineHeight: 1.8 }}>
+
+      {/* Navegação rápida */}
+      <div style={{ fontSize: 13, color: '#888', marginBottom: 32, fontFamily: 'Arial, sans-serif' }}>
+        <Link href="/termos" style={{ color: '#888', textDecoration: 'none', borderBottom: '1px solid #ddd' }}>Termos de Uso</Link>
+        <span style={{ margin: '0 10px' }}>·</span>
+        <Link href="/" style={{ color: '#888', textDecoration: 'none', borderBottom: '1px solid #ddd' }}>Voltar ao sistema</Link>
+      </div>
+
+      <h1 style={{ fontSize: 30, fontWeight: 800, fontFamily: 'Arial, sans-serif', color: '#111', marginBottom: 6, lineHeight: 1.2 }}>
+        Política de Privacidade
+      </h1>
+      <p style={{ fontSize: 14, color: '#888', fontFamily: 'Arial, sans-serif', marginBottom: 40 }}>
+        Última atualização: maio de 2026 — Em conformidade com a LGPD (Lei nº 13.709/2018)
       </p>
 
-      <Section titulo="1. Controlador dos Dados">
-        O controlador dos dados pessoais coletados por este serviço é:{' '}
-        <strong>Alessandro Billy Palma</strong>, responsável pela plataforma cogumelos.app.<br />
-        Contato do encarregado (DPO): <a href="mailto:privacidade@cogumelos.app" style={{ color: '#2D6A4F' }}>privacidade@cogumelos.app</a>
+      <Intro />
+      <Hr />
+      <Section id="controlador" titulo="1. Quem é responsável pelos seus dados">
+        <p>
+          O <strong>cogumelos.app</strong> é operado por Alessandro Billy Palma, responsável pelo tratamento dos seus dados pessoais na qualidade de controlador.
+        </p>
+        <p>
+          Nosso Encarregado de Proteção de Dados (DPO) pode ser contatado pelo e-mail{' '}
+          <a href="mailto:privacidade@cogumelos.app" style={linkStyle}>privacidade@cogumelos.app</a>.
+          Respondemos solicitações de titulares em até 15 dias úteis.
+        </p>
       </Section>
-
-      <Section titulo="2. Dados Pessoais Coletados">
-        Coletamos apenas os dados necessários para a prestação do serviço (princípio da minimização, Art. 6º, III):
-        <ul style={{ paddingLeft: 20, margin: '8px 0 0' }}>
-          <li><strong>Nome completo</strong> — identificação do titular na plataforma.</li>
-          <li><strong>Endereço de e-mail</strong> — autenticação, comunicações e recuperação de senha.</li>
-          <li><strong>Senha</strong> — armazenada exclusivamente em formato hash (BCrypt). Não temos acesso à senha original.</li>
-          <li><strong>Nome do produtor / empresa</strong> — personalização do espaço de trabalho.</li>
-          <li><strong>Data de criação da conta</strong> — controle interno e auditoria.</li>
-          <li><strong>Data e hora de aceite dos termos</strong> — registro do consentimento (Art. 8º, §5º).</li>
-          <li><strong>Dados operacionais</strong> — experimentos, formulações e insumos inseridos pelo próprio titular.</li>
+      <Hr />
+      <Section id="coleta" titulo="2. O que coletamos">
+        <p>Coletamos apenas o necessário para que o sistema funcione. Nada além disso.</p>
+        <table style={tableStyle}>
+          <thead>
+            <tr>
+              <Th>Dado</Th>
+              <Th>Por quê coletamos</Th>
+            </tr>
+          </thead>
+          <tbody>
+            <Tr a="Nome completo" b="Identificação na plataforma e personalização" />
+            <Tr a="E-mail" b="Autenticação, recuperação de acesso e comunicações da conta" />
+            <Tr a="Senha" b="Acesso seguro — armazenada de forma irreversível, nunca legível por nós" />
+            <Tr a="Nome do produtor ou empresa" b="Configuração do espaço de trabalho" />
+            <Tr a="Data de criação da conta" b="Gestão do relacionamento e controle de trial" />
+            <Tr a="Registro de aceite dos termos" b="Comprovação de consentimento exigida pela LGPD" />
+            <Tr a="Dados operacionais inseridos" b="Experimentos, formulações e insumos — conteúdo exclusivo do titular" />
+          </tbody>
+        </table>
+        <p style={{ fontSize: 14, color: '#555', marginTop: 16 }}>
+          Não coletamos dados sensíveis (saúde, biometria, origem racial, convicções religiosas ou políticas).
+        </p>
+      </Section>
+      <Hr />
+      <Section id="uso" titulo="3. Como usamos suas informações">
+        <p>Suas informações são usadas exclusivamente para:</p>
+        <ul style={ulStyle}>
+          <li>Operar e manter o serviço que você contratou</li>
+          <li>Autenticar seu acesso e proteger sua conta</li>
+          <li>Enviar comunicações transacionais (recuperação de senha, avisos de expiração)</li>
+          <li>Cumprir obrigações legais e responder a solicitações de autoridades competentes</li>
+          <li>Melhorar a estabilidade e segurança da plataforma</li>
         </ul>
-        Não coletamos dados sensíveis conforme definição do Art. 5º, II da LGPD.
+        <p>
+          Não usamos seus dados para publicidade, venda a terceiros ou perfilamento comportamental.
+        </p>
       </Section>
-
-      <Section titulo="3. Base Legal para o Tratamento">
-        O tratamento dos dados é realizado com as seguintes bases legais (Art. 7º):
-        <ul style={{ paddingLeft: 20, margin: '8px 0 0' }}>
-          <li><strong>Consentimento (I)</strong> — coletado no momento do registro, com registro de data e hora.</li>
-          <li><strong>Execução de contrato (V)</strong> — dados necessários para prestação do serviço contratado.</li>
-          <li><strong>Legítimo interesse (IX)</strong> — segurança da plataforma e prevenção a fraudes.</li>
+      <Hr />
+      <Section id="compartilhamento" titulo="4. Com quem compartilhamos">
+        <p>
+          Seus dados não são vendidos. Compartilhamos apenas com parceiros indispensáveis para operar o serviço, todos sujeitos a obrigações contratuais de confidencialidade:
+        </p>
+        <table style={tableStyle}>
+          <thead>
+            <tr>
+              <Th>Parceiro</Th>
+              <Th>Finalidade</Th>
+            </tr>
+          </thead>
+          <tbody>
+            <Tr a="Google (OAuth2)" b="Autenticação opcional via conta Google" />
+            <Tr a="Provedor de e-mail" b="Envio de mensagens transacionais da conta" />
+            <Tr a="Servidor de hospedagem" b="Armazenamento e processamento dos dados" />
+          </tbody>
+        </table>
+        <p style={{ fontSize: 14, color: '#555', marginTop: 16 }}>
+          Podemos compartilhar dados com autoridades quando exigido por lei, ordem judicial ou para proteger direitos e segurança de terceiros.
+        </p>
+      </Section>
+      <Hr />
+      <Section id="seguranca" titulo="5. Como protegemos seus dados">
+        <p>
+          Adotamos medidas de segurança compatíveis com as melhores práticas do setor para proteger suas informações contra acesso não autorizado, perda ou alteração:
+        </p>
+        <ul style={ulStyle}>
+          <li>Senhas nunca são armazenadas em texto legível — passam por transformação irreversível</li>
+          <li>Sessões são gerenciadas por credenciais de curta duração, renovadas automaticamente</li>
+          <li>Cookies de sessão são configurados para não serem acessíveis por scripts da página</li>
+          <li>Cada conta possui um espaço de dados completamente isolado das demais</li>
+          <li>Toda comunicação ocorre sob protocolo de segurança (HTTPS)</li>
+          <li>Tentativas excessivas de login são bloqueadas automaticamente</li>
         </ul>
+        <p style={{ fontSize: 14, color: '#555' }}>
+          Nenhum sistema é 100% infalível. Em caso de incidente relevante, notificaremos você e a ANPD conforme o Art. 48 da LGPD.
+        </p>
       </Section>
-
-      <Section titulo="4. Finalidade do Tratamento">
-        Os dados são utilizados exclusivamente para:
-        <ul style={{ paddingLeft: 20, margin: '8px 0 0' }}>
-          <li>Autenticação e controle de acesso ao sistema.</li>
-          <li>Personalização da experiência do usuário.</li>
-          <li>Comunicações transacionais (recuperação de senha, avisos de conta).</li>
-          <li>Cumprimento de obrigações legais.</li>
+      <Hr />
+      <Section id="retencao" titulo="6. Por quanto tempo guardamos seus dados">
+        <p>
+          Guardamos seus dados enquanto sua conta estiver ativa. Contas inativas com plano expirado ou cancelado são removidas automaticamente após um período de carência de 90 dias — prazo suficiente para que você exporte seus dados antes da exclusão.
+        </p>
+        <p>
+          Se você encerrar a conta manualmente pelo perfil, todos os dados são apagados imediatamente e de forma permanente, sem possibilidade de recuperação.
+        </p>
+      </Section>
+      <Hr />
+      <Section id="cookies" titulo="7. Cookies">
+        <p>
+          Usamos apenas cookies estritamente necessários para o funcionamento do sistema. Não há cookies de rastreamento, publicidade ou analytics de terceiros.
+        </p>
+        <table style={tableStyle}>
+          <thead>
+            <tr>
+              <Th>Cookie</Th>
+              <Th>Finalidade</Th>
+              <Th>Duração</Th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <Td>accessToken</Td>
+              <Td>Mantém sua sessão ativa</Td>
+              <Td>15 minutos</Td>
+            </tr>
+            <tr style={{ background: '#fafafa' }}>
+              <Td>refreshToken</Td>
+              <Td>Renova sua sessão sem novo login</Td>
+              <Td>8 horas</Td>
+            </tr>
+          </tbody>
+        </table>
+        <p style={{ fontSize: 14, color: '#555', marginTop: 16 }}>
+          Ambos os cookies são configurados como <em>HttpOnly</em> e <em>Secure</em>, invisíveis ao JavaScript da página e transmitidos apenas via HTTPS.
+        </p>
+      </Section>
+      <Hr />
+      <Section id="direitos" titulo="8. Seus direitos">
+        <p>
+          A LGPD garante a você controle sobre seus próprios dados. Veja como exercer cada direito diretamente na plataforma:
+        </p>
+        <table style={tableStyle}>
+          <thead>
+            <tr>
+              <Th>Direito</Th>
+              <Th>Como exercer</Th>
+            </tr>
+          </thead>
+          <tbody>
+            <Tr a="Acesso aos seus dados" b="Perfil → Exportar meus dados (download em JSON)" />
+            <Tr a="Correção do nome" b="Perfil → campo Nome → Editar" />
+            <Tr a="Portabilidade" b="Perfil → Exportar meus dados" />
+            <Tr a="Eliminação" b="Perfil → Encerrar conta e apagar dados (imediato e irreversível)" />
+            <Tr a="Revogação do consentimento" b="Encerrar a conta revoga automaticamente o consentimento" />
+            <Tr a="Oposição ou outros direitos" b="E-mail: privacidade@cogumelos.app" />
+          </tbody>
+        </table>
+      </Section>
+      <Hr />
+      <Section id="contato" titulo="9. Contato">
+        <p>
+          Para qualquer questão sobre privacidade, exercício de direitos ou dúvidas sobre esta política:
+        </p>
+        <ul style={ulStyle}>
+          <li>
+            <strong>Encarregado de Dados (DPO):</strong>{' '}
+            <a href="mailto:privacidade@cogumelos.app" style={linkStyle}>privacidade@cogumelos.app</a>
+          </li>
+          <li>
+            <strong>Contato geral:</strong>{' '}
+            <a href="mailto:contato@cogumelos.app" style={linkStyle}>contato@cogumelos.app</a>
+          </li>
         </ul>
-        Não utilizamos seus dados para publicidade, perfilamento ou venda a terceiros.
+        <p style={{ fontSize: 14, color: '#555' }}>
+          Respondemos em até 15 dias úteis, conforme o Art. 18, §3º da LGPD. Se não ficar satisfeito com nossa resposta, você pode
+          recorrer à <a href="https://www.gov.br/anpd" target="_blank" rel="noopener noreferrer" style={linkStyle}>ANPD (Autoridade Nacional de Proteção de Dados)</a>.
+        </p>
+      </Section>
+      <Hr />
+      <Section id="alteracoes" titulo="10. Alterações nesta política">
+        <p>
+          Quando fizermos alterações relevantes, você será avisado por e-mail ou por aviso no sistema antes que entrem em vigor.
+          A versão anterior ficará disponível mediante solicitação.
+        </p>
       </Section>
 
-      <Section titulo="5. Compartilhamento com Terceiros">
-        Compartilhamos dados com os seguintes parceiros tecnológicos, estritamente para operação do serviço:
-        <ul style={{ paddingLeft: 20, margin: '8px 0 0' }}>
-          <li><strong>Google OAuth2</strong> — autenticação opcional via conta Google. Ao utilizar este método, o e-mail e nome do Google são compartilhados conosco. Consulte a <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#2D6A4F' }}>Política de Privacidade do Google</a>.</li>
-          <li><strong>Provedor de e-mail transacional</strong> — envio de mensagens de recuperação de senha.</li>
-          <li><strong>Provedor de hospedagem (servidor)</strong> — armazenamento dos dados em servidores seguros.</li>
-        </ul>
-        Todos os parceiros são obrigados contratualmente a manter a confidencialidade dos dados.
-      </Section>
-
-      <Section titulo="6. Segurança dos Dados">
-        Adotamos as seguintes medidas técnicas de segurança (Art. 46):
-        <ul style={{ paddingLeft: 20, margin: '8px 0 0' }}>
-          <li>Senhas armazenadas com hash BCrypt.</li>
-          <li>Tokens de sessão (JWT) transmitidos exclusivamente em cookies HttpOnly e Secure, inacessíveis via JavaScript.</li>
-          <li>Isolamento total de dados entre contas (multi-tenancy).</li>
-          <li>Limite de tentativas de login (rate limiting) para prevenir ataques de força bruta.</li>
-          <li>Tokens de recuperação de senha com expiração de 1 hora e uso único.</li>
-          <li>Comunicação via HTTPS em todos os ambientes de produção.</li>
-        </ul>
-      </Section>
-
-      <Section titulo="7. Retenção de Dados">
-        Os dados pessoais são mantidos enquanto a conta estiver ativa. Ao encerrar a conta, todos os dados são apagados permanentemente e imediatamente,
-        sem possibilidade de recuperação. Não mantemos backups individuais por titular após o encerramento.
-      </Section>
-
-      <Section titulo="8. Seus Direitos como Titular (Art. 18)">
-        Você tem os seguintes direitos, exercíveis diretamente pela plataforma ou via contato:
-        <ul style={{ paddingLeft: 20, margin: '8px 0 0' }}>
-          <li><strong>Acesso (II)</strong> — visualize seus dados no perfil do sistema.</li>
-          <li><strong>Correção (III)</strong> — atualize seu nome diretamente no perfil.</li>
-          <li><strong>Portabilidade (V)</strong> — exporte todos os seus dados em formato JSON pelo perfil (botão "Exportar meus dados").</li>
-          <li><strong>Eliminação (VI)</strong> — encerre sua conta pelo perfil (botão "Encerrar conta e apagar dados"). A ação é imediata e irreversível.</li>
-          <li><strong>Revogação do consentimento (IX)</strong> — você pode revogar seu consentimento a qualquer momento encerrando a conta.</li>
-          <li><strong>Informação sobre compartilhamento (VII)</strong> — descrito na seção 5 acima.</li>
-          <li><strong>Oposição (XI)</strong> — entre em contato pelo e-mail abaixo para questionar tratamentos específicos.</li>
-        </ul>
-        Para exercer direitos que não estejam disponíveis diretamente na plataforma, entre em contato em até 15 dias úteis via{' '}
-        <a href="mailto:privacidade@cogumelos.app" style={{ color: '#2D6A4F' }}>privacidade@cogumelos.app</a>.
-      </Section>
-
-      <Section titulo="9. Notificação de Incidentes">
-        Em caso de incidente de segurança que possa acarretar risco ou dano relevante aos titulares, notificaremos a ANPD e os usuários afetados
-        em prazo razoável, conforme exigido pelo Art. 48 da LGPD.
-      </Section>
-
-      <Section titulo="10. Cookies">
-        Utilizamos apenas cookies estritamente necessários para o funcionamento do sistema:
-        <ul style={{ paddingLeft: 20, margin: '8px 0 0' }}>
-          <li><strong>accessToken</strong> — autenticação da sessão ativa (HttpOnly, Secure, expira em 15 minutos).</li>
-          <li><strong>refreshToken</strong> — renovação de sessão (HttpOnly, Secure, expira em 8 horas).</li>
-        </ul>
-        Não utilizamos cookies de rastreamento, publicidade ou analytics de terceiros.
-      </Section>
-
-      <Section titulo="11. Alterações nesta Politica">
-        Eventuais alterações serão comunicadas por e-mail e/ou aviso no sistema. O uso continuado após a vigência das alterações constitui aceitação.
-        A versão anterior ficará disponível mediante solicitação.
-      </Section>
-
-      <Section titulo="12. Contato e Canal de Atendimento ao Titular">
-        Para exercer seus direitos ou esclarecer dúvidas sobre privacidade:
-        <ul style={{ paddingLeft: 20, margin: '8px 0 0' }}>
-          <li>E-mail do encarregado (DPO): <a href="mailto:privacidade@cogumelos.app" style={{ color: '#2D6A4F' }}>privacidade@cogumelos.app</a></li>
-          <li>Contato geral: <a href="mailto:contato@cogumelos.app" style={{ color: '#2D6A4F' }}>contato@cogumelos.app</a></li>
-        </ul>
-        Respondemos em até 15 dias uteis, conforme Art. 18, §3º da LGPD.
-      </Section>
-
-      <div style={{ marginTop: 48, paddingTop: 24, borderTop: '1px solid #EEE', textAlign: 'center' }}>
-        <a href="/" style={{ fontSize: 13, color: '#888', textDecoration: 'none' }}>Voltar ao sistema</a>
-        <span style={{ margin: '0 12px', color: '#ccc' }}>|</span>
-        <a href="/termos" style={{ fontSize: 13, color: '#888', textDecoration: 'none' }}>Termos de Uso</a>
-      </div>
     </div>
   )
 }
 
-function Section({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+// ─── Componentes auxiliares ───────────────────────────────────────────────────
+
+function Intro() {
   return (
-    <div style={{ marginBottom: 28 }}>
-      <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 8 }}>{titulo}</h2>
-      <div style={{ fontSize: 14, color: '#444', margin: 0 }}>{children}</div>
+    <div style={{ background: '#f9f9f7', borderRadius: 12, padding: '20px 24px', marginBottom: 40, fontFamily: 'Arial, sans-serif' }}>
+      <p style={{ fontSize: 15, color: '#333', margin: 0, lineHeight: 1.7 }}>
+        Nesta política explicamos quais dados pessoais coletamos, por que os coletamos, como os protegemos e quais são seus direitos como titular.
+        Lemos cada palavra que escrevemos aqui — e esperamos que você também leia.
+      </p>
     </div>
+  )
+}
+
+function Section({ titulo, children, id }: { titulo: string; children: React.ReactNode; id: string }) {
+  return (
+    <section id={id} style={{ marginBottom: 40 }}>
+      <h2 style={{ fontSize: 18, fontWeight: 700, fontFamily: 'Arial, sans-serif', color: '#111', marginBottom: 16, textTransform: 'uppercase', letterSpacing: '.03em' }}>
+        {titulo}
+      </h2>
+      <div style={{ fontSize: 16, color: '#333', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {children}
+      </div>
+    </section>
+  )
+}
+
+function Hr() {
+  return <hr style={{ border: 'none', borderTop: '1px solid #EBEBEB', margin: '0 0 40px' }} />
+}
+
+const tableStyle: React.CSSProperties = {
+  width: '100%',
+  borderCollapse: 'collapse',
+  fontSize: 14,
+  fontFamily: 'Arial, sans-serif',
+}
+
+const linkStyle: React.CSSProperties = {
+  color: '#2D6A4F',
+  textDecoration: 'none',
+  borderBottom: '1px solid #2D6A4F',
+}
+
+const ulStyle: React.CSSProperties = {
+  paddingLeft: 20,
+  margin: 0,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 6,
+}
+
+function Th({ children }: { children: React.ReactNode }) {
+  return (
+    <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: '#888', borderBottom: '2px solid #EBEBEB', background: '#fafafa' }}>
+      {children}
+    </th>
+  )
+}
+
+function Td({ children }: { children: React.ReactNode }) {
+  return (
+    <td style={{ padding: '10px 12px', borderBottom: '1px solid #F0F0F0', verticalAlign: 'top', color: '#333' }}>
+      {children}
+    </td>
+  )
+}
+
+function Tr({ a, b }: { a: string; b: string }) {
+  return (
+    <tr>
+      <Td><strong>{a}</strong></Td>
+      <Td>{b}</Td>
+    </tr>
   )
 }

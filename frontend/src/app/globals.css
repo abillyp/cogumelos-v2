@@ -24,11 +24,18 @@
 
 * { box-sizing: border-box; }
 
+html {
+  height: 100%;
+}
+
 body {
   background: var(--gray-bg);
   color: #111;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-tap-highlight-color: transparent;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
   @apply antialiased;
 }
 
@@ -249,14 +256,12 @@ body {
   .card  { border-radius: 14px; padding: 14px; }
   .btn, .btn-primary { padding: 10px 16px; }
 }
-/* Adicionar no final do globals.css existente */
 
 /* ── PWA / Mobile ── */
 @media (max-width: 640px) {
-  /* Inputs maiores para toque */
   .input {
     min-height: 48px;
-    font-size: 16px !important; /* evita zoom automático no iOS */
+    font-size: 16px !important;
     border-radius: 12px;
   }
 
@@ -264,20 +269,17 @@ body {
     font-size: 16px !important;
   }
 
-  /* Botões maiores */
   .btn, .btn-primary {
     min-height: 48px;
     border-radius: 12px;
     font-size: 15px;
   }
 
-  /* Cards com menos padding */
   .card {
     border-radius: 16px;
     padding: 14px;
   }
 
-  /* Modais como bottom sheet */
   .modal-overlay {
     align-items: flex-end !important;
   }
@@ -289,29 +291,24 @@ body {
     max-width: 100% !important;
   }
 
-  /* Tabs maiores no mobile */
   .tab-btn {
     padding: 10px 6px;
     font-size: 12px;
   }
 
-  /* Métricas em 2 colunas no mobile */
   .metrics-grid {
     grid-template-columns: repeat(2, 1fr) !important;
   }
 
-  /* Tabelas — scroll horizontal */
   .table-wrap {
     margin: 0 -14px;
     padding: 0 14px;
   }
 
-  /* Esconde colunas secundárias em tabelas mobile */
   .tbl .col-hide-mobile {
     display: none;
   }
 
-  /* Padding seguro para notch e home indicator */
   body {
     padding-bottom: env(safe-area-inset-bottom);
   }

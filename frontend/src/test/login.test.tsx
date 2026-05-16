@@ -156,6 +156,7 @@ describe('LoginPage', () => {
     await userEvent.click(abas[0])
 
     await userEvent.type(screen.getByPlaceholderText('Seu nome completo'), 'Novo Usuário')
+    await userEvent.type(screen.getByPlaceholderText('Ex: Cogumelos São Paulo'), 'Empresa X')
     await userEvent.type(screen.getByPlaceholderText('seu@email.com'), 'novo@test.com')
     await userEvent.type(screen.getByPlaceholderText('Mínimo 6 caracteres'), 'senha123')
 
