@@ -672,7 +672,7 @@ function Calculadora() {
                       </td>
                       <td style={{ color:'#888' }}>{f.especieNome}</td>
                       <td style={{ fontWeight:700, color: f.cnDentroFaixa ? 'var(--teal)' : 'var(--amber)' }}>{f.cnTotal?.toFixed(2) ?? '—'}</td>
-                      <td style={{ color:'#888' }}>{f.totalBlocos.toFixed(2) ?? '—'}</td>
+                      <td style={{ color:'#888' }}>{f.totalBlocos != null ? f.totalBlocos.toFixed(2) : '—'}</td>
                       <td style={{ color:'#bbb', fontSize:12 }}>{f.usuarioNome}</td>
                       <td style={{ textAlign:'right', whiteSpace:'nowrap' }}>
                         <button style={{ fontSize:12, color:'var(--purple)', background:'none', border:'none', cursor:'pointer', marginRight:8 }} onClick={() => duplicarFormulacao(f)}>duplicar</button>
