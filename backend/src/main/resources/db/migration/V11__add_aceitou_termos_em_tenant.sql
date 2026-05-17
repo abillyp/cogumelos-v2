@@ -1,1 +1,1 @@
-ALTER TABLE tenants ADD COLUMN aceitou_termos_em TIMESTAMP;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS aceitou_termos_em TIMESTAMP;
