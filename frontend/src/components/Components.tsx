@@ -51,8 +51,8 @@ export function CnAlert({
     >
       <span style={{ fontSize: 16 }}>{ok ? '✓' : '⚠'}</span>
       {ok
-        ? `C/N ${cnTotal.toFixed(1)} dentro da faixa ideal para ${especieNome} (${cnMin}–${cnMax}).`
-        : `C/N ${cnTotal.toFixed(1)} fora da faixa para ${especieNome} (${cnMin}–${cnMax}). Ajuste os insumos.`}
+        ? `C/N ${cnTotal.toFixed(2)} dentro da faixa ideal para ${especieNome} (${cnMin}–${cnMax}).`
+        : `C/N ${cnTotal.toFixed(2)} fora da faixa para ${especieNome} (${cnMin}–${cnMax}). Ajuste os insumos.`}
     </div>
   )
 }

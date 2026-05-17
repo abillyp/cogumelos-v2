@@ -705,7 +705,7 @@ function Calculadora() {
                     {f.nome}
                   </button>
                   <span style={{ fontSize:12, color:'#888' }}>
-                    {f.especieNome} · C/N <span style={{ fontWeight:700, color: f.cnDentroFaixa ? 'var(--teal)' : 'var(--amber)' }}>{f.cnTotal?.toFixed(1)??'—'}</span>
+                    {f.especieNome} · C/N <span style={{ fontWeight:700, color: f.cnDentroFaixa ? 'var(--teal)' : 'var(--amber)' }}>{f.cnTotal?.toFixed(2)??'—'}</span>
                     {f.totalBlocos ? ` · ${f.totalBlocos} blocos` : ''}
                   </span>
                 </div>
