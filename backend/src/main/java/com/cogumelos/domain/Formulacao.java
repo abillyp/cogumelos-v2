@@ -72,7 +72,7 @@ public class Formulacao extends TenantEntity implements Persistable<String> {
 
     @NotNull @DecimalMin("0.0")
     @Column(nullable = false)
-    private Integer totalBlocos;
+    private Double  totalBlocos;
 
     @Column(name = "cn_total")
     private Double cnTotal;

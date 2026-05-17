@@ -117,7 +117,7 @@ class ExperimentoControllerIntegrationTest {
         formulacao.setUsuario(usuario);
         formulacao.setUmidade(65.0);
         formulacao.setPesoBlocoKg(1.2);
-        formulacao.setTotalBlocos(40);
+        formulacao.setTotalBlocos(40.10);
         formulacao.getInsumos().add(fi);
         fi.setFormulacao(formulacao);
         formulacao.recalcular();

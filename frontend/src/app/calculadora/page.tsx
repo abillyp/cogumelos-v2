@@ -226,7 +226,7 @@ function ModalEdicao({ formulacao, insumos, especies, onFechar, onSalva }: {
           <div style={{ background: cnTotal >= especie.cnMin && cnTotal <= especie.cnMax ? '#E1F5EE' : '#FEF3C7', borderRadius: 10, padding: '8px 12px', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: '#555' }}>C/N calculado</span>
             <span style={{ fontSize: 15, fontWeight: 700, color: cnTotal >= especie.cnMin && cnTotal <= especie.cnMax ? '#0F6E56' : '#92400E' }}>
-              {cnTotal.toFixed(1)} <span style={{ fontSize: 11, fontWeight: 400 }}>ideal: {especie.cnMin}–{especie.cnMax}</span>
+              {cnTotal.toFixed(2)} <span style={{ fontSize: 11, fontWeight: 400 }}>ideal: {especie.cnMin}–{especie.cnMax}</span>
             </span>
           </div>
         )}
@@ -298,11 +298,11 @@ function ModalEdicao({ formulacao, insumos, especies, onFechar, onSalva }: {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
               <div style={{ background: '#fff', borderRadius: 10, padding: '10px', textAlign: 'center', border: '0.5px solid #E8E8E8' }}>
                 <p style={{ fontSize: 11, color: '#888', margin: '0 0 4px' }}>Água a adicionar</p>
-                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#185FA5' }}>{agua !== null ? `${agua.toFixed(1)} L` : '—'}</p>
+                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#185FA5' }}>{agua !== null ? `${agua.toFixed(2)} L` : '—'}</p>
               </div>
               <div style={{ background: '#fff', borderRadius: 10, padding: '10px', textAlign: 'center', border: '0.5px solid #E8E8E8' }}>
                 <p style={{ fontSize: 11, color: '#888', margin: '0 0 4px' }}>Peso final</p>
-                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#111' }}>{pesoFinal !== null ? `${pesoFinal.toFixed(1)} kg` : '—'}</p>
+                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#111' }}>{pesoFinal !== null ? `${pesoFinal.toFixed(2)} kg` : '—'}</p>
               </div>
               <div style={{ background: '#fff', borderRadius: 10, padding: '10px', textAlign: 'center', border: '0.5px solid #E8E8E8' }}>
                 <p style={{ fontSize: 11, color: '#888', margin: '0 0 4px' }}>Qtd de blocos</p>
@@ -671,8 +671,8 @@ function Calculadora() {
                         </button>
                       </td>
                       <td style={{ color:'#888' }}>{f.especieNome}</td>
-                      <td style={{ fontWeight:700, color: f.cnDentroFaixa ? 'var(--teal)' : 'var(--amber)' }}>{f.cnTotal?.toFixed(1) ?? '—'}</td>
-                      <td style={{ color:'#888' }}>{f.totalBlocos ?? '—'}</td>
+                      <td style={{ fontWeight:700, color: f.cnDentroFaixa ? 'var(--teal)' : 'var(--amber)' }}>{f.cnTotal?.toFixed(2) ?? '—'}</td>
+                      <td style={{ color:'#888' }}>{f.totalBlocos.toFixed(2) ?? '—'}</td>
                       <td style={{ color:'#bbb', fontSize:12 }}>{f.usuarioNome}</td>
                       <td style={{ textAlign:'right', whiteSpace:'nowrap' }}>
                         <button style={{ fontSize:12, color:'var(--purple)', background:'none', border:'none', cursor:'pointer', marginRight:8 }} onClick={() => duplicarFormulacao(f)}>duplicar</button>

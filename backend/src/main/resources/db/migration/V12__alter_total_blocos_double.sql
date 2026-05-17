@@ -1,0 +1,1 @@
+ALTER TABLE formulacoes ALTER COLUMN total_blocos TYPE NUMERIC(10,2);
