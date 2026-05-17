@@ -151,13 +151,13 @@ function Insumos() {
                   )}
                 </div>
                 <p style={{ fontSize:18, fontWeight:800, color: (i.cnRatio ?? (i.nitrogenioPct > 0 ? i.carbonoPct / i.nitrogenioPct : 0)) > 100 ? 'var(--amber)' : 'var(--teal)' }}>
-                  C/N {(i.cnRatio ?? (i.nitrogenioPct > 0 ? i.carbonoPct / i.nitrogenioPct : null))?.toFixed(0) ?? '—'}
+                  C/N {(i.cnRatio ?? (i.nitrogenioPct > 0 ? i.carbonoPct / i.nitrogenioPct : null))?.toFixed(2) ?? '—'}
                 </p>
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:6 }}>
                 {[
-                  { label:'MO%', value:(i.moPct*100).toFixed(1) },
-                  { label:'C%',  value:(i.carbonoPct*100).toFixed(1) },
+                  { label:'MO%', value:(i.moPct*100).toFixed(2) },
+                  { label:'C%',  value:(i.carbonoPct*100).toFixed(2) },
                   { label:'N%',  value:(i.nitrogenioPct*100).toFixed(2) },
                   { label:'pH',  value:i.ph??'—' },
                 ].map(({ label, value }) => (
