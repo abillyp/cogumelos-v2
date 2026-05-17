@@ -497,12 +497,12 @@ function Calculadora() {
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10, marginBottom:12 }} className="sm:grid-cols-4">
-        <MetricCard label="Relação C/N" value={cnTotal !== null ? cnTotal.toFixed(1) : '—'}
+        <MetricCard label="Relação C/N" value={cnTotal !== null ? cnTotal.toFixed(2) : '—'}
           unit={especie ? `ideal: ${especie.cnMin}–${especie.cnMax}` : ''}
           highlight={cnTotal !== null && especie ? cnTotal >= especie.cnMin && cnTotal <= especie.cnMax : false}
           warn={cnTotal !== null && especie ? cnTotal < especie.cnMin || cnTotal > especie.cnMax : false} />
         <MetricCard label="pH médio" value={phMedio ? phMedio.toFixed(1) : '—'} unit="estimado" />
-        <MetricCard label="Peso total" value={totalPeso.toFixed(1)} unit="kg" />
+        <MetricCard label="Peso total" value={totalPeso.toFixed(2)} unit="kg" />
         <MetricCard label="Espécie" value={especie?.nome.split(' ')[0] ?? '—'} />
       </div>
 
@@ -612,11 +612,11 @@ function Calculadora() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
               <div style={{ background: '#fff', borderRadius: 10, padding: '10px', textAlign: 'center', border: '0.5px solid #E8E8E8' }}>
                 <p style={{ fontSize: 11, color: '#888', margin: '0 0 4px' }}>Água a adicionar</p>
-                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#185FA5' }}>{agua !== null ? `${agua.toFixed(1)} L` : '—'}</p>
+                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#185FA5' }}>{agua !== null ? `${agua.toFixed(2)} L` : '—'}</p>
               </div>
               <div style={{ background: '#fff', borderRadius: 10, padding: '10px', textAlign: 'center', border: '0.5px solid #E8E8E8' }}>
                 <p style={{ fontSize: 11, color: '#888', margin: '0 0 4px' }}>Peso final</p>
-                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#111' }}>{pesoFinal !== null ? `${pesoFinal.toFixed(1)} kg` : '—'}</p>
+                <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#111' }}>{pesoFinal !== null ? `${pesoFinal.toFixed(2)} kg` : '—'}</p>
               </div>
               <div style={{ background: '#fff', borderRadius: 10, padding: '10px', textAlign: 'center', border: '0.5px solid #E8E8E8' }}>
                 <p style={{ fontSize: 11, color: '#888', margin: '0 0 4px' }}>Qtd de blocos</p>
