@@ -7,51 +7,14 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { Insumo, Especie, Formulacao } from '@/lib/types'
-import { MetricCard, CnAlert, ContribuicaoBar } from '@/components/Components'
+import { toNum, calcular, calcularAgua, type LinhaCalculo } from '@/lib/calculos'
+import { MetricCard, CnAlert, ContribuicaoBar, Modal } from '@/components/Components'
 import ProtectedRoute from '@/components/ProtectedRoute'
 
-interface Linha { insumoId: string; pesoRealKg: number | string; umidadePct: number | string }
+type Linha = LinhaCalculo
 
 const DRAFT_KEY = 'cogumelos:calc-draft'
 const BAR_COLORS = ['var(--purple)','var(--teal-m)','var(--amber)','var(--blue)','#D2A8FF']
-
-function toNum(v: number | string): number {
-  const n = parseFloat(String(v))
-  return isNaN(n) ? 0 : n
-}
-
-function calcular(linhas: Linha[], insumos: Insumo[]) {
-  let totalC = 0, totalN = 0, totalPeso = 0, somaPh = 0, countPh = 0
-  let totalPesoSeco = 0, totalPesoUmido = 0
-  const contribs: { id: string; nome: string; cKg: number }[] = []
-  for (const l of linhas) {
-    const ins = insumos.find(i => i.id === l.insumoId)
-    const peso = toNum(l.pesoRealKg)
-    const umid = toNum(l.umidadePct)
-    if (!ins || !peso) { contribs.push({ id: l.insumoId, nome: '—', cKg: 0 }); continue }
-    const ps  = peso * (1 - umid / 100)
-    const pu  = peso - ps
-    const mo  = ps * ins.moPct
-    const cKg = mo * ins.carbonoPct
-    const nKg = mo * ins.nitrogenioPct
-    totalC    += cKg; totalN += nKg; totalPeso += peso
-    totalPesoSeco  += ps
-    totalPesoUmido += pu
-    if (ins.ph !== null) { somaPh += ins.ph; countPh++ }
-    contribs.push({ id: l.insumoId, nome: ins.nome, cKg })
-  }
-  return {
-    cnTotal:  totalN > 0 ? totalC / totalN : null,
-    phMedio:  countPh > 0 ? somaPh / countPh : null,
-    totalPeso, contribs, totalC, totalPesoSeco, totalPesoUmido,
-  }
-}
-
-function calcularAgua(totalPesoSeco: number, totalPeso: number, umidadeDesejada: number): number | null {
-  if (umidadeDesejada <= 0 || umidadeDesejada >= 100) return null
-  const agua = (100 * totalPesoSeco + totalPeso * (umidadeDesejada - 100)) / (100 - umidadeDesejada)
-  return agua < 0 ? 0 : agua
-}
 
 function numericOnChange(setter: (v: string | number) => void) {
   return (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,8 +39,7 @@ function ModalConsulta({ formulacao, onFechar }: { formulacao: Formulacao, onFec
   const pesoTotal = formulacao.insumos.reduce((acc, i) => acc + i.pesoRealKg, 0)
 
   return (
-    <div onClick={onFechar} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, border: '0.5px solid #E8E8E8', padding: '20px', width: '100%', maxWidth: 440, maxHeight: '85vh', overflowY: 'auto' }}>
+    <Modal onClose={onFechar} maxWidth={440}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
           <div>
             <p style={{ fontSize: 17, fontWeight: 700, color: '#111', margin: '0 0 6px' }}>{formulacao.nome}</p>
@@ -137,8 +99,7 @@ function ModalConsulta({ formulacao, onFechar }: { formulacao: Formulacao, onFec
           </div>
         </div>
         <p style={{ fontSize: 12, color: '#bbb', textAlign: 'right', marginTop: 16, marginBottom: 0 }}>Criado por {formulacao.usuarioNome}</p>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -215,8 +176,7 @@ function ModalEdicao({ formulacao, insumos, especies, onFechar, onSalva }: {
   }
 
   return (
-    <div onClick={onFechar} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, border: '0.5px solid #E8E8E8', padding: '20px', width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}>
+    <Modal onClose={onFechar} maxWidth={480}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <p style={{ fontSize: 16, fontWeight: 700, color: '#111', margin: 0 }}>Editar formulação</p>
           <button onClick={onFechar} style={{ background: '#F0F0F0', border: 'none', width: 32, height: 32, borderRadius: '50%', fontSize: 16, color: '#555', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>

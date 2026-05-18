@@ -278,5 +278,70 @@ export function StatCard({
   )
 }
 
+// ── Modal (backdrop centrado) ─────────────────────────────────────────────────
+export function Modal({
+  onClose,
+  maxWidth = 440,
+  contentStyle,
+  children,
+}: {
+  onClose: () => void
+  maxWidth?: number
+  contentStyle?: React.CSSProperties
+  children: React.ReactNode
+}) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+        zIndex: 100, display: 'flex', alignItems: 'center',
+        justifyContent: 'center', padding: 16,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#fff', borderRadius: 16, border: '0.5px solid #E8E8E8',
+          padding: '20px', width: '100%', maxWidth, maxHeight: '90vh', overflowY: 'auto',
+          ...contentStyle,
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
+// ── BottomSheet (slide-up mobile) ─────────────────────────────────────────────
+export function BottomSheet({
+  onClose,
+  children,
+}: {
+  onClose: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+        zIndex: 50, display: 'flex', alignItems: 'flex-end',
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#fff', borderRadius: '20px 20px 0 0',
+          padding: '20px 16px 40px', width: '100%',
+          maxHeight: '80vh', overflowY: 'auto',
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
 // ── Re-exports de constantes úteis ────────────────────────────────────────────
 export { STATUS_LABEL, BADGE_CLASS, STATUS_ORDER }

@@ -4,16 +4,19 @@
 // Contato: alessandro.billy@organico4you.com.br
 
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { DayPicker } from 'react-day-picker'
 import { format, parse, isValid } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import 'react-day-picker/dist/style.css'
 import { api } from '@/lib/api'
 import { Experimento, Formulacao, Monitoramento, Colheita } from '@/lib/types'
+import { statusOrderIndex, proximaFaseSimples } from '@/lib/calculos'
 import { MiniChart, StatCard } from '@/components/Components'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useAuth } from '@/hooks/useAuth'
+
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const STATUS_LABEL: Record<string, string> = {
@@ -31,13 +34,6 @@ const STATUS_STYLE: Record<string, { bg: string; badge: string; badgeText: strin
   FRUTIFICACAO:   { bg: 'linear-gradient(135deg,#E3F0FF,#C7E0FF)', badge: '#1F6FEB', badgeText: '#fff' },
   DESCANSO:       { bg: 'linear-gradient(135deg,#FAEEDA,#FAC775)', badge: '#BA7517', badgeText: '#fff' },
   CONCLUIDO:      { bg: 'linear-gradient(135deg,#EAF3DE,#D5EBBE)', badge: '#27500A', badgeText: '#fff' },
-}
-
-function statusOrderIndex(s: string) {
-  return ['PREPARACAO', 'INOCULADO', 'AMADURECIMENTO', 'FRUTIFICACAO', 'DESCANSO', 'CONCLUIDO'].indexOf(s)
-}
-function proximaFaseSimples(status: string): string {
-  return ({ PREPARACAO: 'INOCULADO', INOCULADO: 'AMADURECIMENTO', AMADURECIMENTO: 'FRUTIFICACAO' } as any)[status] ?? 'FRUTIFICACAO'
 }
 
 // ─── DateInput ────────────────────────────────────────────────────────────────
@@ -185,11 +181,7 @@ function ModalDeletarExperimento({ exp, onConfirmar, onFechar }: {
   async function handleDeletar() {
     if (!confirmado) return
     setDeletando(true)
-    try {
-      await onConfirmar()
-    } finally {
-      setDeletando(false)
-    }
+    try { await onConfirmar() } finally { setDeletando(false) }
   }
 
   return (
@@ -199,12 +191,10 @@ function ModalDeletarExperimento({ exp, onConfirmar, onFechar }: {
           <p style={{ fontSize: 16, fontWeight: 700, color: '#791F1F', margin: 0 }}>Deletar experimento</p>
           <button onClick={onFechar} style={{ background: '#F0F0F0', border: 'none', width: 32, height: 32, borderRadius: '50%', fontSize: 16, color: '#555', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
         </div>
-
         <div style={{ background: '#FCEBEB', border: '0.5px solid #F09595', borderRadius: 10, padding: 12, marginBottom: 16 }}>
           <p style={{ fontSize: 13, fontWeight: 500, color: '#791F1F', margin: '0 0 6px' }}>⚠️ Esta ação é irreversível</p>
           <p style={{ fontSize: 12, color: '#A32D2D', margin: 0 }}>Todos os dados relacionados serão permanentemente deletados:</p>
         </div>
-
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
           {carregando ? (
             <p style={{ fontSize: 13, color: '#888', textAlign: 'center', padding: '12px 0' }}>Carregando...</p>
@@ -221,29 +211,207 @@ function ModalDeletarExperimento({ exp, onConfirmar, onFechar }: {
             ))
           ) : null}
         </div>
-
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 6 }}>
             Digite <strong style={{ color: '#111' }}>{exp.codigo}</strong> para confirmar
           </label>
-          <input
-            type="text"
-            placeholder={exp.codigo}
-            value={codigoDigitado}
+          <input type="text" placeholder={exp.codigo} value={codigoDigitado}
             onChange={e => setCodigoDigitado(e.target.value)}
-            style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: `1.5px solid ${confirmado ? '#5DCAA5' : '#F09595'}`, borderRadius: 8, fontSize: 14, outline: 'none' }}
-          />
+            style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: `1.5px solid ${confirmado ? '#5DCAA5' : '#F09595'}`, borderRadius: 8, fontSize: 14, outline: 'none' }} />
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={onFechar} style={{ flex: 1, background: 'none', border: '0.5px solid #E0E0E0', borderRadius: 8, padding: '10px', fontSize: 13, color: '#555', cursor: 'pointer' }}>Cancelar</button>
+          <button onClick={handleDeletar} disabled={!confirmado || deletando}
+            style={{ flex: 2, background: confirmado ? '#A32D2D' : '#F09595', color: '#fff', border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 500, cursor: confirmado ? 'pointer' : 'not-allowed', transition: 'background .2s' }}>
+            {deletando ? 'Deletando...' : 'Deletar permanentemente'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Modal etiquetas ──────────────────────────────────────────────────────────
+function ModalEtiquetas({ exp, onFechar }: { exp: Experimento; onFechar: () => void }) {
+  const [cor, setCor]           = useState('#534AB7')
+  const [modo, setModo]         = useState<'todos' | 'um'>('todos')
+  const [blocoNum, setBlocoNum] = useState(1)
+
+  const expUrl   = `${typeof window !== 'undefined' ? window.location.origin : 'https://app.organico4you.com.br'}/experimentos?exp=${encodeURIComponent(exp.codigo)}`
+  const qrSrc    = `/api/qr?url=${encodeURIComponent(expUrl)}`
+
+  function pad(n: number) { return String(n).padStart(3, '0') }
+
+  function fmtData(d: string | null) {
+    if (!d) return '—'
+    const parts = d.split('-')
+    if (parts.length !== 3) return d
+    return `${parts[2]}/${parts[1]}/${parts[0]}`
+  }
+
+  function getBlocos() {
+    if (modo === 'um') return [blocoNum]
+    return Array.from({ length: exp.totalBlocos }, (_, i) => i + 1)
+  }
+
+  function etiquetaHtml(num: number) {
+    return `
+      <div style="width:220px;border:1.5px solid #222;border-radius:8px;overflow:hidden;font-family:monospace;background:#fff;display:inline-block;margin:4mm;vertical-align:top;">
+        <div style="background:${cor};padding:8px 12px;display:flex;align-items:center;gap:10px;">
+          <div style="width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid rgba(255,255,255,0.5);flex-shrink:0;"></div>
+          <div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.75);letter-spacing:.05em;">BLOCO</div>
+            <div style="font-size:20px;font-weight:700;color:#fff;line-height:1;">#${pad(num)}</div>
+          </div>
+        </div>
+        <div style="padding:8px 12px;background:#fff;display:flex;gap:8px;align-items:flex-start;">
+          <table style="flex:1;font-size:10px;border-collapse:collapse;font-family:monospace;">
+            <tr><td style="color:#888;padding:1px 0;width:68px;">Experimento</td><td style="color:#111;font-weight:700;padding:1px 0;">${exp.codigo}</td></tr>
+            <tr><td style="color:#888;padding:1px 0;">Espécie</td><td style="color:#111;padding:1px 0;">${exp.especieNome}</td></tr>
+            <tr><td style="color:#888;padding:1px 0;">Formulação</td><td style="color:#111;padding:1px 0;">${exp.formulacaoNome}</td></tr>
+            <tr><td style="color:#888;padding:1px 0;">Preparo</td><td style="color:#111;padding:1px 0;">${fmtData(exp.dataPreparo)}</td></tr>
+          </table>
+          <img src="${qrSrc}" width="48" height="48" style="flex-shrink:0;border-radius:3px;">
+        </div>
+        <div style="padding:4px 12px;background:#f7f6f3;border-top:1px solid #eee;">
+          <span style="font-size:9px;color:#bbb;">cogumelos.app · ${exp.codigo}-${pad(num)}</span>
+        </div>
+      </div>
+    `
+  }
+
+  function imprimir() {
+    const blocos = getBlocos()
+    const conteudo = blocos.map(etiquetaHtml).join('')
+    const win = window.open('', '_blank')
+    if (!win) return
+    win.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Etiquetas — ${exp.codigo}</title>
+          <style>
+            body { margin: 0; padding: 8mm; font-family: monospace; }
+            @media print { body { margin: 0; padding: 4mm; } }
+          </style>
+        </head>
+        <body>
+          <div style="display:flex;flex-wrap:wrap;">${conteudo}</div>
+          <script>
+            var imgs = document.querySelectorAll('img')
+            var loaded = 0
+            function tryPrint() { loaded++; if (loaded >= imgs.length) { window.print(); window.close(); } }
+            if (imgs.length === 0) { window.print(); window.close(); }
+            else { imgs.forEach(function(img) { if (img.complete) tryPrint(); else { img.onload = tryPrint; img.onerror = tryPrint; } }) }
+          <\/script>
+        </body>
+      </html>
+    `)
+    win.document.close()
+  }
+
+  const blocos = getBlocos()
+
+  return (
+    <div onClick={onFechar} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: 20, width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div>
+            <p style={{ fontSize: 16, fontWeight: 700, color: '#111', margin: 0 }}>Imprimir etiquetas</p>
+            <p style={{ fontSize: 12, color: '#888', margin: '2px 0 0' }}>{exp.codigo} · {exp.totalBlocos} blocos</p>
+          </div>
+          <button onClick={onFechar} style={{ background: '#F0F0F0', border: 'none', width: 32, height: 32, borderRadius: '50%', fontSize: 16, color: '#555', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
         </div>
 
+        {/* Dados do experimento (somente leitura) */}
+        <div style={{ background: '#F7F6F3', borderRadius: 10, padding: '10px 14px', marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+          {[
+            { label: 'Espécie',    value: exp.especieNome },
+            { label: 'Formulação', value: exp.formulacaoNome },
+            { label: 'Preparo',    value: exp.dataPreparo ? fmtData(exp.dataPreparo) : '—' },
+            { label: 'Blocos',     value: String(exp.totalBlocos) },
+          ].map(({ label, value }) => (
+            <div key={label}>
+              <p style={{ fontSize: 10, color: '#888', margin: '0 0 1px', textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</p>
+              <p style={{ fontSize: 13, fontWeight: 500, color: '#111', margin: 0 }}>{value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Opções */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+          <div>
+            <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 6 }}>Cor do bloco</label>
+            <input type="color" value={cor} onChange={e => setCor(e.target.value)}
+              style={{ width: 48, height: 36, border: '0.5px solid #EBEBEB', borderRadius: 8, cursor: 'pointer', padding: 2 }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 6 }}>Imprimir</label>
+            <select value={modo} onChange={e => setModo(e.target.value as 'todos' | 'um')}
+              style={{ width: '100%', padding: '8px 10px', border: '1px solid #EBEBEB', borderRadius: 8, fontSize: 13, background: '#fff' }}>
+              <option value="todos">Todos os blocos ({exp.totalBlocos})</option>
+              <option value="um">Bloco específico</option>
+            </select>
+          </div>
+        </div>
+
+        {modo === 'um' && (
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 6 }}>Número do bloco</label>
+            <input type="number" min={1} max={exp.totalBlocos} value={blocoNum}
+              onChange={e => setBlocoNum(Math.min(exp.totalBlocos, Math.max(1, parseInt(e.target.value) || 1)))}
+              style={{ width: 100, padding: '8px 10px', border: '1px solid #EBEBEB', borderRadius: 8, fontSize: 13 }} />
+            <span style={{ fontSize: 12, color: '#888', marginLeft: 8 }}>de {exp.totalBlocos}</span>
+          </div>
+        )}
+
+        {/* Prévia */}
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ fontSize: 11, color: '#bbb', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 8 }}>
+            Prévia — {blocos.length} {blocos.length === 1 ? 'etiqueta' : 'etiquetas'}
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: 12, background: '#F7F6F3', borderRadius: 10, maxHeight: 280, overflowY: 'auto' }}>
+            {blocos.slice(0, 6).map(num => (
+              <div key={num} style={{ width: 180, border: '1.5px solid #222', borderRadius: 8, overflow: 'hidden', fontFamily: 'monospace', background: '#fff', fontSize: 10 }}>
+                <div style={{ background: cor, padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#fff', border: '2px solid rgba(255,255,255,0.5)', flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.75)', letterSpacing: '.05em' }}>BLOCO</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', lineHeight: 1 }}>#{pad(num)}</div>
+                  </div>
+                </div>
+                <div style={{ padding: '6px 10px', background: '#fff' }}>
+                  <table style={{ width: '100%', fontSize: 9, borderCollapse: 'collapse' }}>
+                    <tbody>
+                      <tr><td style={{ color: '#888', paddingRight: 6 }}>Exp.</td><td style={{ color: '#111', fontWeight: 700 }}>{exp.codigo}</td></tr>
+                      <tr><td style={{ color: '#888' }}>Espécie</td><td style={{ color: '#111' }}>{exp.especieNome}</td></tr>
+                      <tr><td style={{ color: '#888' }}>Formula.</td><td style={{ color: '#111' }}>{exp.formulacaoNome}</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ padding: '3px 10px', background: '#f7f6f3', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 8, color: '#bbb' }}>cogumelos.app · {exp.codigo}-{pad(num)}</span>
+                  <img src={qrSrc} width={24} height={24} style={{ display: 'block' }} />
+                </div>
+              </div>
+            ))}
+            {blocos.length > 6 && (
+              <div style={{ width: 180, border: '1.5px dashed #EBEBEB', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 12, color: '#bbb' }}>+{blocos.length - 6} mais</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Botões */}
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={onFechar} style={{ flex: 1, background: 'none', border: '0.5px solid #E0E0E0', borderRadius: 8, padding: '10px', fontSize: 13, color: '#555', cursor: 'pointer' }}>
             Cancelar
           </button>
-          <button
-            onClick={handleDeletar}
-            disabled={!confirmado || deletando}
-            style={{ flex: 2, background: confirmado ? '#A32D2D' : '#F09595', color: '#fff', border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 500, cursor: confirmado ? 'pointer' : 'not-allowed', transition: 'background .2s' }}>
-            {deletando ? 'Deletando...' : 'Deletar permanentemente'}
+          <button onClick={imprimir} style={{ flex: 2, background: '#534AB7', color: '#fff', border: 'none', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+            🖨️ Imprimir {blocos.length} {blocos.length === 1 ? 'etiqueta' : 'etiquetas'}
           </button>
         </div>
       </div>
@@ -279,7 +447,7 @@ function ExpCard({ e, onAbrir }: { e: Experimento; onAbrir: (e: Experimento) => 
   )
 }
 
-// ─── DetalheContent (fora do pai para evitar perda de foco) ──────────────────
+// ─── DetalheContent ───────────────────────────────────────────────────────────
 interface DetalheProps {
   selected: Experimento
   monitoramentos: Monitoramento[]
@@ -291,6 +459,7 @@ interface DetalheProps {
   isAdmin: boolean
   onAvancar: () => void
   onDeletar: () => void
+  onEtiquetas: () => void
   podeAdmin: boolean
   onSalvarMon: (data: any) => Promise<void>
   onSalvarColheita: (data: any) => Promise<void>
@@ -301,14 +470,14 @@ function DetalheContent({
   selected, monitoramentos, colheitas,
   abaDetalhe, setAbaDetalhe,
   verTodosMonitor, setVerTodosMonitor,
-  isAdmin, onAvancar, onDeletar, podeAdmin, onSalvarMon, onSalvarColheita, onSalvarCustos,
+  isAdmin, onAvancar, onDeletar, onEtiquetas, podeAdmin,
+  onSalvarMon, onSalvarColheita, onSalvarCustos,
 }: DetalheProps) {
   const emFrut = selected.status === 'FRUTIFICACAO'
   const emDesc = selected.status === 'DESCANSO'
   const perdidos = selected.blocosPerdidos ?? 0
   const ativos = selected.totalBlocos - perdidos
 
-  // estados locais dos formulários — não causam re-render do pai
   const [sala, setSala]               = useState('FRUTIFICACAO')
   const [dataM, setDataM]             = useState(new Date().toISOString().slice(0, 10))
   const [temp, setTemp]               = useState('')
@@ -382,6 +551,13 @@ function DetalheContent({
             </p>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {/* Botão etiquetas */}
+            <button
+              onClick={onEtiquetas}
+              style={{ background: 'none', border: '0.5px solid #EBEBEB', borderRadius: 8, padding: '8px 10px', fontSize: 13, cursor: 'pointer', color: '#534AB7' }}
+              title="Imprimir etiquetas">
+              🏷️
+            </button>
             {selected.status !== 'CONCLUIDO' && (
               <button className="btn-primary" style={{ fontSize: 13 }} onClick={onAvancar}>Avançar →</button>
             )}
@@ -603,7 +779,7 @@ function DetalheContent({
   )
 }
 
-// ─── NovoExpForm (fora do pai) ────────────────────────────────────────────────
+// ─── NovoExpForm ──────────────────────────────────────────────────────────────
 interface NovoExpFormProps {
   formulacoes: Formulacao[]
   formulacaoId: string; setFormulacaoId: (v: string) => void
@@ -655,10 +831,17 @@ function NovoExpForm({ formulacoes, formulacaoId, setFormulacaoId, codigo, setCo
 }
 
 // ─── Página principal ─────────────────────────────────────────────────────────
-export default function ExperimentosPage() { return <ProtectedRoute><Experimentos /></ProtectedRoute> }
+export default function ExperimentosPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProtectedRoute><Experimentos /></ProtectedRoute>
+    </Suspense>
+  )
+}
 
 function Experimentos() {
   const { isAdmin } = useAuth()
+  const searchParams = useSearchParams()
   const [experimentos, setExperimentos] = useState<Experimento[]>([])
   const [formulacoes, setFormulacoes]   = useState<Formulacao[]>([])
   const [selected, setSelected]         = useState<Experimento | null>(null)
@@ -667,6 +850,7 @@ function Experimentos() {
   const [modalAberto, setModalAberto]       = useState(false)
   const [modalAvancar, setModalAvancar]     = useState(false)
   const [modalDeletar, setModalDeletar]     = useState(false)
+  const [modalEtiquetas, setModalEtiquetas] = useState(false)
   const [abaDetalhe, setAbaDetalhe]         = useState<'monitor' | 'colheitas' | 'custos'>('monitor')
   const [showNovoExp, setShowNovoExp]       = useState(false)
   const [verTodosMonitor, setVerTodosMonitor] = useState(false)
@@ -692,6 +876,13 @@ function Experimentos() {
   }
 
   useEffect(() => { carregarBase() }, [])
+
+  useEffect(() => {
+    const expCodigo = searchParams.get('exp')
+    if (!expCodigo || experimentos.length === 0) return
+    const found = experimentos.find(e => e.codigo === expCodigo)
+    if (found) abrirDetalhe(found)
+  }, [experimentos, searchParams])
 
   async function abrirDetalhe(e: Experimento) {
     setSelected(e); setAbaDetalhe('monitor'); setVerTodosMonitor(false)
@@ -761,6 +952,7 @@ function Experimentos() {
     setModalDeletar(false)
     fecharModal()
   }
+
   const ativos       = experimentos.filter(e => e.status !== 'CONCLUIDO').length
   const totalColhido = experimentos.reduce((s, e) => s + (e.financeiro?.totalColhidoKg ?? 0), 0)
   const receitaTotal = experimentos.reduce((s, e) => s + (e.financeiro?.receitaTotal ?? 0), 0)
@@ -838,6 +1030,7 @@ function Experimentos() {
               isAdmin={isAdmin}
               onAvancar={() => setModalAvancar(true)}
               onDeletar={() => setModalDeletar(true)}
+              onEtiquetas={() => setModalEtiquetas(true)}
               podeAdmin={isAdmin}
               onSalvarMon={salvarMon}
               onSalvarColheita={salvarColheita}
@@ -855,6 +1048,11 @@ function Experimentos() {
       {/* Modal deletar */}
       {modalDeletar && selected && (
         <ModalDeletarExperimento exp={selected} onConfirmar={deletar} onFechar={() => setModalDeletar(false)} />
+      )}
+
+      {/* Modal etiquetas */}
+      {modalEtiquetas && selected && (
+        <ModalEtiquetas exp={selected} onFechar={() => setModalEtiquetas(false)} />
       )}
     </div>
   )
