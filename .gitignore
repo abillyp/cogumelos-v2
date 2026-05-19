@@ -8,6 +8,7 @@
 *.jks
 secrets/
 frontend/.env.local
+frontend/.claude/
 
 # ── Java / Maven ──────────────────────────────────────────────────────────────
 backend/target/
