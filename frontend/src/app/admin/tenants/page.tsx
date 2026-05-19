@@ -4,29 +4,11 @@
 // Contato: alessandro.billy@organico4you.com.br
 
 'use client'
-import { useEffect, useState, useCallback } from 'react'
-import { api } from '@/lib/api'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import { useAuth } from '@/hooks/useAuth'
-import { useRouter } from 'next/navigation'
-
-// ── Tipos ──────────────────────────────────────────────────────────────────────
-interface TenantAdmin {
-  id: number; nome: string; email: string
-  plano: string; status: string
-  trialExpira: string | null; assinaturaExpira: string | null
-  criadoEm: string
-  usuarioAdminNome: string; usuarioAdminEmail: string
-  adminRole: string | null
-  totalExperimentos: number; totalUsuarios: number
-}
-interface Resumo {
-  total: number; emTrial: number; ativos: number
-  expirados: number; expira3dias: number
-}
-interface UsuarioTenant {
-  id: string; nome: string; email: string; role: string
-}
+import { Modal } from '@/components/Components'
+import { diasRestantes } from '@/lib/calculos'
+import { useAdminTenants } from '@/hooks/useAdminTenants'
+import type { TenantAdmin } from '@/hooks/useAdminTenants'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const STATUS_LABEL: Record<string, string> = {
@@ -51,20 +33,11 @@ function avatarColor(nome: string) {
 function initials(nome: string) {
   return nome.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
 }
-function diasRestantes(data: string | null): number | null {
-  if (!data) return null
-  return Math.ceil((new Date(data).getTime() - Date.now()) / 86_400_000)
-}
-
 // ── Estilos compartilhados ─────────────────────────────────────────────────────
 const inputSt: React.CSSProperties = {
   width: '100%', background: '#F7F6F3',
   border: '1.5px solid #D0CDE8', borderRadius: 8,
   padding: '8px 12px', fontSize: 13, color: '#111', outline: 'none',
-}
-const modalBoxSt: React.CSSProperties = {
-  background: '#fff', border: '0.5px solid #EBEBEB',
-  borderRadius: 12, padding: 20,
 }
 const labelSt: React.CSSProperties = {
   fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 5, display: 'block',
@@ -82,177 +55,33 @@ export default function AdminTenantsPage() {
 
 // ── Componente principal ───────────────────────────────────────────────────────
 function AdminTenants() {
-  const { isAdmin } = useAuth()
-  const router = useRouter()
-
-  const [tenants, setTenants]           = useState<TenantAdmin[]>([])
-  const [resumo, setResumo]             = useState<Resumo>({ total: 0, emTrial: 0, ativos: 0, expirados: 0, expira3dias: 0 })
-  const [loading, setLoading]           = useState(true)
-  const [busca, setBusca]               = useState('')
-  const [filtroStatus, setFiltroStatus] = useState('TODOS')
-  const [editando, setEditando]         = useState<TenantAdmin | null>(null)
-  const [showModal, setShowModal]       = useState(false)
-  const [showNovo, setShowNovo]         = useState(false)
-  const [salvando, setSalvando]         = useState(false)
-  const [erro, setErro]                 = useState('')
-  const [showConfirmDelete, setShowConfirmDelete] = useState(false)
-  const [confirmNome, setConfirmNome]             = useState('')
-  const [excluindo, setExcluindo]                 = useState(false)
-
-  // modal usuários
-  const [showUsuarios, setShowUsuarios]       = useState(false)
-  const [tenantUsuarios, setTenantUsuarios]   = useState<TenantAdmin | null>(null)
-  const [usuarios, setUsuarios]               = useState<UsuarioTenant[]>([])
-  const [loadingUsuarios, setLoadingUsuarios] = useState(false)
-  const [removendo, setRemovendo]             = useState<string | null>(null)
-
-  // form edição
-  const [fNome, setFNome]                         = useState('')
-  const [fPlano, setFPlano]                       = useState('BASICO')
-  const [fStatus, setFStatus]                     = useState('TRIAL')
-  const [fTrialExpira, setFTrialExpira]           = useState('')
-  const [fAssinaturaExpira, setFAssinaturaExpira] = useState('')
-
-  // form novo
-  const [nNome, setNNome]             = useState('')
-  const [nEmail, setNEmail]           = useState('')
-  const [nAdminNome, setNAdminNome]   = useState('')
-  const [nAdminEmail, setNAdminEmail] = useState('')
-  const [nAdminSenha, setNAdminSenha] = useState('')
-  const [nPlano, setNPlano]           = useState('BASICO')
-
-  const carregar = useCallback(async () => {
-    try {
-      const [ts, rs]: any[] = await Promise.all([
-        api.admin.tenants.listar(),
-        api.admin.tenants.resumo(),
-      ])
-      setTenants(ts)
-      setResumo(rs)
-    } catch (e: any) {
-      setErro(e.message)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!isAdmin) { router.push('/'); return }
-    carregar()
-  }, [isAdmin, carregar, router])
-
-  function abrirEditar(t: TenantAdmin) {
-    setEditando(t)
-    setFNome(t.nome)
-    setFPlano(t.plano)
-    setFStatus(t.status)
-    setFTrialExpira(t.trialExpira?.slice(0, 10) ?? '')
-    setFAssinaturaExpira(t.assinaturaExpira?.slice(0, 10) ?? '')
-    setErro('')
-    setShowConfirmDelete(false)
-    setConfirmNome('')
-    setShowModal(true)
-  }
-
-  async function abrirUsuarios(t: TenantAdmin) {
-    setTenantUsuarios(t)
-    setUsuarios([])
-    setShowUsuarios(true)
-    setLoadingUsuarios(true)
-    try {
-      const data = await api.admin.tenants.listarUsuarios(t.id) as UsuarioTenant[]
-      setUsuarios(data)
-    } catch (e: any) {
-      alert(e.message)
-    } finally {
-      setLoadingUsuarios(false)
-    }
-  }
-
-  async function removerUsuario(usuarioId: string) {
-    if (!tenantUsuarios) return
-    setRemovendo(usuarioId)
-    try {
-      await api.admin.tenants.removerUsuario(tenantUsuarios.id, usuarioId)
-      setUsuarios(prev => prev.filter(u => u.id !== usuarioId))
-      setTenants(prev => prev.map(t =>
-        t.id === tenantUsuarios.id ? { ...t, totalUsuarios: t.totalUsuarios - 1 } : t
-      ))
-    } catch (e: any) {
-      alert(e.message)
-    } finally {
-      setRemovendo(null)
-    }
-  }
-
-  async function excluirTenant() {
-    if (!editando) return
-    setExcluindo(true)
-    try {
-      await api.admin.tenants.deletar(editando.id)
-      setShowModal(false)
-      await carregar()
-    } catch (e: any) {
-      setErro(e.message)
-    } finally {
-      setExcluindo(false)
-    }
-  }
-
-  async function salvar() {
-    if (!editando) return
-    setSalvando(true); setErro('')
-    try {
-      await api.admin.tenants.atualizar(editando.id, {
-        nome: fNome, plano: fPlano, status: fStatus,
-        trialExpira: fTrialExpira || null,
-        assinaturaExpira: fAssinaturaExpira || null,
-      })
-      await carregar()
-      setShowModal(false)
-    } catch (e: any) {
-      setErro(e.message)
-    } finally {
-      setSalvando(false)
-    }
-  }
-
-  async function estenderTrial(id: number) {
-    try {
-      await api.admin.tenants.estenderTrial(id, 14)
-      await carregar()
-    } catch (e: any) {
-      alert(e.message)
-    }
-  }
-
-  async function criarTenant() {
-    setSalvando(true); setErro('')
-    try {
-      await api.admin.tenants.criar({
-        nome: nNome, email: nEmail,
-        nomeAdmin: nAdminNome, emailAdmin: nAdminEmail,
-        senhaAdmin: nAdminSenha, plano: nPlano,
-      })
-      await carregar()
-      setShowNovo(false)
-      setNNome(''); setNEmail(''); setNAdminNome(''); setNAdminEmail(''); setNAdminSenha('')
-    } catch (e: any) {
-      setErro(e.message)
-    } finally {
-      setSalvando(false)
-    }
-  }
-
-  const filtrados = tenants.filter(t => {
-    const termo = busca.toLowerCase()
-    const matchBusca = !busca
-      || t.nome.toLowerCase().includes(termo)
-      || t.email.toLowerCase().includes(termo)
-      || t.usuarioAdminEmail.toLowerCase().includes(termo)
-    const matchStatus = filtroStatus === 'TODOS' || t.status === filtroStatus
-    return matchBusca && matchStatus
-  })
+  const {
+    isAdmin,
+    resumo, loading,
+    busca, setBusca,
+    filtroStatus, setFiltroStatus,
+    editando,
+    showModal, setShowModal,
+    showNovo, setShowNovo,
+    salvando,
+    erro,
+    showConfirmDelete, setShowConfirmDelete,
+    confirmNome, setConfirmNome,
+    excluindo,
+    erroNovo, setErroNovo,
+    erroPage, setErroPage,
+    showUsuarios, setShowUsuarios,
+    tenantUsuarios,
+    usuarios,
+    loadingUsuarios,
+    removendo,
+    erroUsuarios,
+    formEdicao, setFormEdicao,
+    formNovo, setFormNovo,
+    filtrados,
+    abrirEditar, abrirUsuarios, removerUsuario,
+    excluirTenant, salvar, estenderTrial, criarTenant,
+  } = useAdminTenants()
 
   if (!isAdmin) return null
 
@@ -278,12 +107,19 @@ function AdminTenants() {
           </p>
         </div>
         <button
-          onClick={() => { setShowNovo(true); setErro('') }}
+          onClick={() => { setShowNovo(true); setErroNovo('') }}
           style={{ background: '#534AB7', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
         >
           + Novo tenant
         </button>
       </div>
+
+      {erroPage && (
+        <div style={{ background: '#FCEBEB', border: '0.5px solid #F09595', borderRadius: 10, padding: '10px 14px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <p style={{ fontSize: 13, color: '#791F1F', margin: 0 }}>{erroPage}</p>
+          <button onClick={() => setErroPage('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#A32D2D' }}>✕</button>
+        </div>
+      )}
 
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 16 }}>
@@ -435,24 +271,19 @@ function AdminTenants() {
 
       {/* ── Modal editar tenant ── */}
       {showModal && editando && (
-        <div
-          style={{ position: 'fixed', inset: 0, zIndex: 99999, backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
-          onClick={() => setShowModal(false)}
-        >
-          <div style={{ width: '100%', maxWidth: 440 }} onClick={e => e.stopPropagation()}>
-            <div style={{ ...modalBoxSt, maxHeight: '90vh', overflowY: 'auto' }}>
+        <Modal onClose={() => setShowModal(false)} maxWidth={440}>
               <p style={{ fontSize: 16, fontWeight: 500, marginBottom: 16, color: 'var(--color-text-primary)' }}>
                 Editar tenant — {editando.usuarioAdminNome}
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div>
                   <label style={labelSt}>Nome do produtor</label>
-                  <input value={fNome} onChange={e => setFNome(e.target.value)} style={inputSt} />
+                  <input value={formEdicao.nome} onChange={e => setFormEdicao(f => ({ ...f, nome: e.target.value }))} style={inputSt} />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div>
                     <label style={labelSt}>Plano</label>
-                    <select value={fPlano} onChange={e => setFPlano(e.target.value)} style={inputSt}>
+                    <select value={formEdicao.plano} onChange={e => setFormEdicao(f => ({ ...f, plano: e.target.value }))} style={inputSt}>
                       <option value="BASICO">Básico</option>
                       <option value="PRO">Pro</option>
                       <option value="COMERCIAL">Comercial</option>
@@ -460,7 +291,7 @@ function AdminTenants() {
                   </div>
                   <div>
                     <label style={labelSt}>Status</label>
-                    <select value={fStatus} onChange={e => setFStatus(e.target.value)} style={inputSt}>
+                    <select value={formEdicao.status} onChange={e => setFormEdicao(f => ({ ...f, status: e.target.value }))} style={inputSt}>
                       <option value="TRIAL">Trial</option>
                       <option value="ATIVO">Ativo</option>
                       <option value="EXPIRADO">Expirado</option>
@@ -470,11 +301,11 @@ function AdminTenants() {
                 </div>
                 <div>
                   <label style={labelSt}>Trial expira em</label>
-                  <input type="date" value={fTrialExpira} onChange={e => setFTrialExpira(e.target.value)} style={inputSt} />
+                  <input type="date" value={formEdicao.trialExpira} onChange={e => setFormEdicao(f => ({ ...f, trialExpira: e.target.value }))} style={inputSt} />
                 </div>
                 <div>
                   <label style={labelSt}>Assinatura expira em</label>
-                  <input type="date" value={fAssinaturaExpira} onChange={e => setFAssinaturaExpira(e.target.value)} style={inputSt} />
+                  <input type="date" value={formEdicao.assinaturaExpira} onChange={e => setFormEdicao(f => ({ ...f, assinaturaExpira: e.target.value }))} style={inputSt} />
                 </div>
               </div>
               {erro && <p style={{ fontSize: 12, color: '#A32D2D', marginTop: 10 }}>{erro}</p>}
@@ -536,33 +367,26 @@ function AdminTenants() {
                 </div>
               )}
 
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* ── Modal novo tenant ── */}
       {showNovo && (
-        <div
-          style={{ position: 'fixed', inset: 0, zIndex: 99999, backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
-          onClick={() => setShowNovo(false)}
-        >
-          <div style={{ width: '100%', maxWidth: 440 }} onClick={e => e.stopPropagation()}>
-            <div style={{ ...modalBoxSt, maxHeight: '90vh', overflowY: 'auto' }}>
+        <Modal onClose={() => setShowNovo(false)} maxWidth={440}>
               <p style={{ fontSize: 16, fontWeight: 500, marginBottom: 16, color: 'var(--color-text-primary)' }}>Novo tenant</p>
               <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 10 }}>Dados da empresa</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
                 <div>
                   <label style={labelSt}>Nome da empresa</label>
-                  <input value={nNome} onChange={e => setNNome(e.target.value)} placeholder="Ex: Cogumelos São Paulo" style={inputSt} />
+                  <input value={formNovo.nome} onChange={e => setFormNovo(f => ({ ...f, nome: e.target.value }))} placeholder="Ex: Cogumelos São Paulo" style={inputSt} />
                 </div>
                 <div>
                   <label style={labelSt}>Email da empresa</label>
-                  <input type="email" value={nEmail} onChange={e => setNEmail(e.target.value)} placeholder="empresa@email.com" style={inputSt} />
+                  <input type="email" value={formNovo.email} onChange={e => setFormNovo(f => ({ ...f, email: e.target.value }))} placeholder="empresa@email.com" style={inputSt} />
                 </div>
                 <div>
                   <label style={labelSt}>Plano inicial</label>
-                  <select value={nPlano} onChange={e => setNPlano(e.target.value)} style={inputSt}>
+                  <select value={formNovo.plano} onChange={e => setFormNovo(f => ({ ...f, plano: e.target.value }))} style={inputSt}>
                     <option value="BASICO">Básico</option>
                     <option value="PRO">Pro</option>
                     <option value="COMERCIAL">Comercial</option>
@@ -573,18 +397,18 @@ function AdminTenants() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div>
                   <label style={labelSt}>Nome</label>
-                  <input value={nAdminNome} onChange={e => setNAdminNome(e.target.value)} placeholder="Nome completo" style={inputSt} />
+                  <input value={formNovo.adminNome} onChange={e => setFormNovo(f => ({ ...f, adminNome: e.target.value }))} placeholder="Nome completo" style={inputSt} />
                 </div>
                 <div>
                   <label style={labelSt}>Email</label>
-                  <input type="email" value={nAdminEmail} onChange={e => setNAdminEmail(e.target.value)} placeholder="admin@empresa.com" style={inputSt} />
+                  <input type="email" value={formNovo.adminEmail} onChange={e => setFormNovo(f => ({ ...f, adminEmail: e.target.value }))} placeholder="admin@empresa.com" style={inputSt} />
                 </div>
                 <div>
                   <label style={labelSt}>Senha inicial</label>
-                  <input type="password" value={nAdminSenha} onChange={e => setNAdminSenha(e.target.value)} placeholder="Mínimo 6 caracteres" style={inputSt} />
+                  <input type="password" value={formNovo.adminSenha} onChange={e => setFormNovo(f => ({ ...f, adminSenha: e.target.value }))} placeholder="Mínimo 6 caracteres" style={inputSt} />
                 </div>
               </div>
-              {erro && <p style={{ fontSize: 12, color: '#A32D2D', marginTop: 10 }}>{erro}</p>}
+              {erroNovo && <p style={{ fontSize: 12, color: '#A32D2D', marginTop: 10 }}>{erroNovo}</p>}
               <div style={{ display: 'flex', gap: 8, marginTop: 16, paddingTop: 16, borderTop: '0.5px solid var(--color-border-tertiary)' }}>
                 <button onClick={() => setShowNovo(false)} style={{ flex: 1, background: 'transparent', border: '0.5px solid var(--color-border-secondary)', borderRadius: 8, padding: 8, fontSize: 13, color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
                   Cancelar
@@ -593,19 +417,12 @@ function AdminTenants() {
                   {salvando ? 'Criando...' : 'Criar tenant'}
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* ── Modal usuários do tenant ── */}
       {showUsuarios && tenantUsuarios && (
-        <div
-          style={{ position: 'fixed', inset: 0, zIndex: 99999, backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
-          onClick={() => setShowUsuarios(false)}
-        >
-          <div style={{ width: '100%', maxWidth: 480 }} onClick={e => e.stopPropagation()}>
-            <div style={{ ...modalBoxSt, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+        <Modal onClose={() => setShowUsuarios(false)} maxWidth={480} contentStyle={{ maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
 
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
@@ -622,6 +439,12 @@ function AdminTenants() {
                   style={{ background: 'none', border: '0.5px solid var(--color-border-secondary)', borderRadius: 6, width: 28, height: 28, cursor: 'pointer', color: 'var(--color-text-secondary)', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >×</button>
               </div>
+
+              {erroUsuarios && (
+                <div style={{ background: '#FCEBEB', border: '0.5px solid #F09595', borderRadius: 8, padding: '8px 12px', marginBottom: 8, fontSize: 12, color: '#791F1F' }}>
+                  {erroUsuarios}
+                </div>
+              )}
 
               {/* Lista */}
               <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -676,9 +499,7 @@ function AdminTenants() {
                 </p>
               </div>
 
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
     </div>

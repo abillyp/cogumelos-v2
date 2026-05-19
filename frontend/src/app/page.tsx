@@ -6,7 +6,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { api } from '@/lib/api'
+import { api, toErrorMessage } from '@/lib/api'
 import { Experimento } from '@/lib/types'
 import { useAuth } from '@/hooks/useAuth'
 import ProtectedRoute from '@/components/ProtectedRoute'
@@ -46,7 +46,7 @@ export default function HomePage() {
 
 function DesktopRedirect() {
   const router = useRouter()
-  useEffect(() => { router.replace('/experimentos') }, [])
+  useEffect(() => { router.replace('/experimentos') }, [router])
   return null
 }
 
@@ -55,11 +55,12 @@ function MobileHome() {
   const router   = useRouter()
   const [experimentos, setExperimentos] = useState<Experimento[]>([])
   const [loading, setLoading] = useState(true)
+  const [erroHome, setErroHome] = useState('')
 
   useEffect(() => {
     api.experimentos.listar()
-      .then((d: any) => setExperimentos(d))
-      .catch(() => {})
+      .then(setExperimentos)
+      .catch((e: unknown) => setErroHome(toErrorMessage(e, 'Não foi possível carregar os experimentos.')))
       .finally(() => setLoading(false))
   }, [])
 
@@ -81,6 +82,12 @@ function MobileHome() {
         <p style={{ fontSize: 13, color: '#888', marginBottom: 2 }}>{saudacao} 👋</p>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: '#111' }}>{primeiroNome}</h1>
       </div>
+
+      {erroHome && (
+        <div style={{ background: '#FCEBEB', border: '0.5px solid #F09595', borderRadius: 12, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#791F1F' }}>
+          {erroHome}
+        </div>
+      )}
 
       {/* Quick cards */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>

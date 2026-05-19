@@ -4,6 +4,7 @@
 // Contato: alessandro.billy@organico4you.com.br
 
 'use client'
+import { memo } from 'react'
 
 // ── MetricCard ────────────────────────────────────────────────────────────────
 export function MetricCard({
@@ -57,147 +58,8 @@ export function CnAlert({
   )
 }
 
-// ── TimelineBar ───────────────────────────────────────────────────────────────
-const STATUS_ORDER = ['PREPARACAO', 'INOCULADO', 'AMADURECIMENTO', 'FRUTIFICACAO', 'CONCLUIDO']
-const STATUS_LABELS = ['Preparo', 'Inoc.', 'Amad.', 'Frut.', 'Fim']
-
-export function TimelineBar({ status }: { status: string }) {
-  const idx = STATUS_ORDER.indexOf(status)
-  return (
-    <div>
-      <div className="timeline-bar">
-        {STATUS_ORDER.map((_, i) => (
-          <div
-            key={i}
-            className={`tl-seg ${i < idx ? 'done' : i === idx ? 'active' : ''}`}
-          />
-        ))}
-      </div>
-      <div className="flex justify-between" style={{ fontSize: 9, color: '#aaa', marginTop: 2 }}>
-        {STATUS_LABELS.map((l) => (
-          <span key={l}>{l}</span>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ── ExperimentoThumb ──────────────────────────────────────────────────────────
-const THUMB_COLORS: Record<string, { bg: string; badge: string }> = {
-  PREPARACAO:     { bg: 'linear-gradient(135deg,#F1EFE8,#E5E3D8)', badge: '#888' },
-  INOCULADO:      { bg: 'linear-gradient(135deg,#EEEDFE,#D5D2FB)', badge: '#534AB7' },
-  AMADURECIMENTO: { bg: 'linear-gradient(135deg,#E3FFF0,#C7F7DF)', badge: '#00A550' },
-  FRUTIFICACAO:   { bg: 'linear-gradient(135deg,#E3F0FF,#C7E0FF)', badge: '#1F6FEB' },
-  CONCLUIDO:      { bg: 'linear-gradient(135deg,#EAF3DE,#D5EBBE)', badge: '#27500A' },
-}
-
-const STATUS_EMOJI: Record<string, string> = {
-  PREPARACAO: '🌾', INOCULADO: '🧪', AMADURECIMENTO: '🍄',
-  FRUTIFICACAO: '🌱', CONCLUIDO: '✅',
-}
-
-const STATUS_LABEL: Record<string, string> = {
-  PREPARACAO: 'Preparo', INOCULADO: 'Inoculado', AMADURECIMENTO: 'Amadurecimento',
-  FRUTIFICACAO: 'Frutificação', CONCLUIDO: 'Concluído',
-}
-
-const BADGE_CLASS: Record<string, string> = {
-  PREPARACAO: 'badge-prep', INOCULADO: 'badge-inoc', AMADURECIMENTO: 'badge-amad',
-  FRUTIFICACAO: 'badge-frut', CONCLUIDO: 'badge-conc',
-}
-
-export function ExperimentoCard({
-  exp,
-  onClick,
-  selected,
-  diasSemMonitoramento,
-}: {
-  exp: {
-    id: string
-    codigo: string
-    status: string
-    especieNome: string
-    formulacaoNome: string
-    totalBlocos: number
-    cnTotal: number | null
-    usuarioNome: string
-  }
-  onClick: () => void
-  selected?: boolean
-  diasSemMonitoramento?: number | null
-}) {
-  const thumb = THUMB_COLORS[exp.status] ?? THUMB_COLORS.PREPARACAO
-  const progressPct = (STATUS_ORDER.indexOf(exp.status) / (STATUS_ORDER.length - 1)) * 100
-
-  return (
-    <div
-      className="card-sm cursor-pointer transition-all hover:shadow-md"
-      style={{
-        outline: selected ? `2px solid var(--purple)` : 'none',
-        outlineOffset: 1,
-      }}
-      onClick={onClick}
-    >
-      {/* Thumbnail */}
-      <div className="exp-thumb" style={{ background: thumb.bg }}>
-        <span style={{ fontSize: 34 }}>{STATUS_EMOJI[exp.status]}</span>
-        <span
-          className={`badge ${BADGE_CLASS[exp.status]}`}
-          style={{ position: 'absolute', top: 8, right: 10 }}
-        >
-          {STATUS_LABEL[exp.status]}
-        </span>
-      </div>
-
-      {/* Body */}
-      <div style={{ padding: '12px 14px' }}>
-        <p style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 2 }}>
-          {exp.codigo}
-        </p>
-        <p style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
-          {exp.especieNome} · {exp.formulacaoNome} · {exp.totalBlocos} blocos
-        </p>
-
-        {/* Barra de progresso da fase */}
-        <div className="progress-track" style={{ marginBottom: 8 }}>
-          <div
-            className="progress-fill"
-            style={{ width: `${progressPct}%`, background: thumb.badge }}
-          />
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-between items-center">
-          <span style={{ fontSize: 11, color: '#888' }}>
-            C/N {exp.cnTotal?.toFixed(1) ?? '—'}
-          </span>
-          {diasSemMonitoramento != null && diasSemMonitoramento > 3 ? (
-            <span
-              style={{
-                fontSize: 10, fontWeight: 700, padding: '2px 8px',
-                borderRadius: 6, background: '#FFF0E0', color: '#FF6B00',
-              }}
-            >
-              ⚠ sem reg. {diasSemMonitoramento}d
-            </span>
-          ) : diasSemMonitoramento === 0 ? (
-            <span
-              style={{
-                fontSize: 10, fontWeight: 700, padding: '2px 8px',
-                borderRadius: 6, background: 'var(--green-l)', color: 'var(--green)',
-              }}
-            >
-              ✓ reg. hoje
-            </span>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── MiniChart ─────────────────────────────────────────────────────────────────
-export function MiniChart({
+export const MiniChart = memo(function MiniChart({
   data,
   color,
   label,
@@ -229,7 +91,7 @@ export function MiniChart({
       </div>
     </div>
   )
-}
+})
 
 // ── ContribuicaoBar ───────────────────────────────────────────────────────────
 export function ContribuicaoBar({
@@ -313,35 +175,3 @@ export function Modal({
   )
 }
 
-// ── BottomSheet (slide-up mobile) ─────────────────────────────────────────────
-export function BottomSheet({
-  onClose,
-  children,
-}: {
-  onClose: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
-        zIndex: 50, display: 'flex', alignItems: 'flex-end',
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: '#fff', borderRadius: '20px 20px 0 0',
-          padding: '20px 16px 40px', width: '100%',
-          maxHeight: '80vh', overflowY: 'auto',
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  )
-}
-
-// ── Re-exports de constantes úteis ────────────────────────────────────────────
-export { STATUS_LABEL, BADGE_CLASS, STATUS_ORDER }

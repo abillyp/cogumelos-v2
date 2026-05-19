@@ -28,6 +28,8 @@ vi.mock('@/lib/api', () => ({
     },
   },
   saveTokens: vi.fn(),
+  toErrorMessage: (e: unknown, fallback = 'Erro desconhecido') =>
+    e instanceof Error ? e.message : fallback,
 }))
 
 import { api } from '@/lib/api'
@@ -129,7 +131,7 @@ describe('LoginPage', () => {
     await userEvent.type(screen.getByPlaceholderText('Seu nome completo'), 'Novo Usuário')
     await userEvent.type(screen.getByPlaceholderText('Ex: Cogumelos São Paulo'), 'Empresa X')
     await userEvent.type(screen.getByPlaceholderText('seu@email.com'), 'novo@test.com')
-    await userEvent.type(screen.getByPlaceholderText('Mínimo 6 caracteres'), 'senha123')
+    await userEvent.type(screen.getByPlaceholderText('Mínimo 8 caracteres'), 'senha123')
 
     // marcar o checkbox de aceite dos termos (obrigatório pela LGPD)
     const checkbox = screen.getByRole('checkbox')
@@ -158,7 +160,7 @@ describe('LoginPage', () => {
     await userEvent.type(screen.getByPlaceholderText('Seu nome completo'), 'Novo Usuário')
     await userEvent.type(screen.getByPlaceholderText('Ex: Cogumelos São Paulo'), 'Empresa X')
     await userEvent.type(screen.getByPlaceholderText('seu@email.com'), 'novo@test.com')
-    await userEvent.type(screen.getByPlaceholderText('Mínimo 6 caracteres'), 'senha123')
+    await userEvent.type(screen.getByPlaceholderText('Mínimo 8 caracteres'), 'senha123')
 
     // NÃO marca o checkbox
     const botoes = screen.getAllByText('Criar conta')

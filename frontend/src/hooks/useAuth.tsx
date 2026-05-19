@@ -6,7 +6,7 @@
 'use client'
 import { useState, useEffect, createContext, useContext } from 'react'
 import { AuthUser } from '@/lib/types'
-import { saveTokens, clearTokens } from '@/lib/api'
+import { clearTokens } from '@/lib/api'
 
 interface AuthCtx {
   user: AuthUser | null

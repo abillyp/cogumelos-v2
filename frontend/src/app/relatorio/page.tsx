@@ -4,28 +4,9 @@
 // Contato: alessandro.billy@organico4you.com.br
 
 'use client'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { api } from '@/lib/api'
+import { useEffect, useRef, useState } from 'react'
 import ProtectedRoute from '@/components/ProtectedRoute'
-
-interface Fin {
-  custoTotalSubstrato?: number | null
-  custoPorKgProduzido?: number | null
-  totalColhidoKg?:      number | null
-  receitaTotal?:        number | null
-  margemReais?:         number | null
-  margemPct?:           number | null
-}
-interface Exp {
-  id: string; codigo: string; formulacaoId: string; formulacaoNome: string
-  especieNome: string; usuarioNome: string; dataPreparo: string; status: string
-  cnTotal: number | null; pesoBlocoKg: number | null; totalBlocos: number
-  precoVendaKg: number | null; financeiro?: Fin | null
-  dataInoculacao?: string | null; amadurecimentoInicio?: string | null
-  amadurecimentoFim?: string | null; frutificacaoInicio?: string | null
-  frutificacaoFim?: string | null
-  insumos?: { insumoId: string; nome: string; pesoKg: number }[]
-}
+import { useRelatorio, calcEB, type Exp } from '@/hooks/useRelatorio'
 
 const fmt = (v: number | null | undefined, prefix = 'R$ ', dec = 2) =>
   v == null || v === 0 ? '—' : `${prefix}${v.toFixed(dec).replace('.', ',')}`
@@ -33,11 +14,6 @@ const pct = (v: number | null | undefined, dec = 1) =>
   v == null ? '—' : `${v.toFixed(dec).replace('.', ',')}%`
 const fmtKg = (v: number | null | undefined) =>
   v == null || v === 0 ? '—' : `${v.toFixed(1)} kg`
-
-function diasEntre(a: string | null | undefined, b: string | null | undefined): number | null {
-  if (!a || !b) return null
-  return Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86_400_000)
-}
 
 const STATUS_PT: Record<string, string> = {
   PREPARACAO: 'Preparo', INOCULADO: 'Inoculado',
@@ -51,23 +27,16 @@ const BADGE: Record<string, { bg: string; color: string }> = {
   CONCLUIDO:      { bg: '#EAF3DE', color: '#27500A' },
 }
 
-function calcEB(e: Exp): number | null {
-  if (e.status !== 'CONCLUIDO') return null
-  const colhido = e.financeiro?.totalColhidoKg
-  if (!colhido || colhido === 0) return null
-  const pesoTotal = (e.insumos ?? []).reduce((s, i) => s + i.pesoKg, 0)
-  if (!pesoTotal) return null
-  const eb = (colhido / pesoTotal) * 100
-  return Math.min(Math.max(eb, 0), 200)
-}
+type ChartType = 'bar' | 'scatter' | 'line' | 'doughnut'
 
 function useChart(
   ref: React.RefObject<HTMLCanvasElement>,
-  type: string, data: any, options: any, deps: any[]
+  type: ChartType, data: unknown, options: unknown, deps: React.DependencyList
 ) {
   useEffect(() => {
-    if (!ref.current || !(window as any).Chart) return
-    const C = (window as any).Chart
+    if (!ref.current || !(window as Window & { Chart?: unknown }).Chart) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const C = (window as Window & { Chart?: any }).Chart
     const ex = C.getChart(ref.current)
     if (ex) ex.destroy()
     new C(ref.current, { type, data, options })
@@ -106,148 +75,34 @@ export default function RelatorioPage() {
 }
 
 function Relatorio() {
-  const [loading, setLoading]     = useState(true)
-  const [erro, setErro]           = useState('')
-  const [abaDesk, setAbaDesk]     = useState<'experimentos' | 'formulacoes'>('experimentos')
-  const [abaMob, setAbaMob]       = useState<'geral' | 'formulacoes' | 'insumos' | 'alertas'>('geral')
-  const [filtroEsp, setFiltroEsp] = useState('Todas')
-  const [filtroSt, setFiltroSt]   = useState('Todos')
-  const [showFiltros, setShowFiltros] = useState(false)
-  const [chartReady, setChartReady] = useState(false)
-  const [resumo, setResumo]       = useState({ totalExperimentos: 0, concluidos: 0, emAndamento: 0, totalColhidoKg: null as number | null, receitaTotal: null as number | null, custoTotal: null as number | null, margemMediaPct: null as number | null })
-  const [exps, setExps]           = useState<Exp[]>([])
+  const {
+    loading, erro,
+    resumo, concluidos, ativos,
+    ebMedia, custoPorKgMedio, pontoEquilibrio, diasCiclo,
+    diasFases, topForm, consumoInsumos, colheitaMensal, projecao, alertas,
+    filtrados, especiesLista, statusesLista,
+    filtroEsp, setFiltroEsp, filtroSt, setFiltroSt,
+    exportarCSV,
+  } = useRelatorio()
 
-  const cMensalM  = useRef<HTMLCanvasElement>(null)
-  const cScatM    = useRef<HTMLCanvasElement>(null)
-  const cInsM     = useRef<HTMLCanvasElement>(null)
-  const cMensalD  = useRef<HTMLCanvasElement>(null)
-  const cScatD    = useRef<HTMLCanvasElement>(null)
+  const [abaDesk, setAbaDesk]         = useState<'experimentos' | 'formulacoes'>('experimentos')
+  const [abaMob, setAbaMob]           = useState<'geral' | 'formulacoes' | 'insumos' | 'alertas'>('geral')
+  const [showFiltros, setShowFiltros] = useState(false)
+  const [chartReady, setChartReady]   = useState(false)
+
+  const cMensalM = useRef<HTMLCanvasElement>(null)
+  const cScatM   = useRef<HTMLCanvasElement>(null)
+  const cInsM    = useRef<HTMLCanvasElement>(null)
+  const cMensalD = useRef<HTMLCanvasElement>(null)
+  const cScatD   = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    if ((window as any).Chart) { setChartReady(true); return }
+    if ((window as Window & { Chart?: unknown }).Chart) { setChartReady(true); return }
     const script = document.createElement('script')
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js'
     script.onload = () => setChartReady(true)
     document.head.appendChild(script)
   }, [])
-
-  useEffect(() => {
-    api.relatorio.gerar()
-      .then((v: unknown) => {
-        const d = v as any
-        setResumo({ totalExperimentos: d.totalExperimentos ?? 0, concluidos: d.concluidos ?? 0, emAndamento: d.emAndamento ?? 0, totalColhidoKg: d.totalColhidoKg ?? null, receitaTotal: d.receitaTotal ?? null, custoTotal: d.custoTotal ?? null, margemMediaPct: d.margemMediaPct ?? null })
-        setExps((d.detalhes ?? []).map((e: any): Exp => ({
-          id: e.id, codigo: e.codigo, formulacaoId: e.formulacaoId, formulacaoNome: e.formulacaoNome,
-          especieNome: e.especieNome, usuarioNome: e.usuarioNome, dataPreparo: e.dataPreparo, status: e.status,
-          cnTotal: e.cnTotal ?? null, pesoBlocoKg: e.pesoBlocoKg ?? null, totalBlocos: e.totalBlocos ?? 0,
-          precoVendaKg: e.precoVendaKg ?? null, financeiro: e.financeiro ?? null,
-          dataInoculacao: e.dataInoculacao ?? null, amadurecimentoInicio: e.amadurecimentoInicio ?? null,
-          amadurecimentoFim: e.amadurecimentoFim ?? null, frutificacaoInicio: e.frutificacaoInicio ?? null,
-          frutificacaoFim: e.frutificacaoFim ?? null, insumos: e.insumos ?? [],
-        })))
-      })
-      .catch((e: any) => setErro(e?.message ?? 'Erro'))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const concluidos = useMemo(() => exps.filter(e => e.status === 'CONCLUIDO'), [exps])
-  const ativos     = useMemo(() => exps.filter(e => e.status !== 'CONCLUIDO'), [exps])
-
-  const ebMedia = useMemo(() => {
-    const v = concluidos.map(calcEB).filter((x): x is number => x !== null)
-    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null
-  }, [concluidos])
-
-  const custoPorKgMedio = useMemo(() => {
-    const v = concluidos.map(e => e.financeiro?.custoPorKgProduzido).filter((x): x is number => x != null && x > 0)
-    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null
-  }, [concluidos])
-
-  const pontoEquilibrio = useMemo(() => {
-    const precos = ativos.map(e => e.precoVendaKg).filter((x): x is number => x != null && x > 0)
-    const custos = ativos.map(e => e.financeiro?.custoTotalSubstrato).filter((x): x is number => x != null && x > 0)
-    if (!precos.length || !custos.length) return null
-    return (custos.reduce((a, b) => a + b, 0) / custos.length) / (precos.reduce((a, b) => a + b, 0) / precos.length)
-  }, [ativos])
-
-  const diasCiclo = useMemo(() => {
-    const v = concluidos.map(e => diasEntre(e.dataPreparo, e.frutificacaoFim)).filter((x): x is number => x !== null)
-    return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null
-  }, [concluidos])
-
-  const diasFases = useMemo(() => ([
-    { label: 'Inoculação',   vals: concluidos.map(e => diasEntre(e.dataPreparo, e.dataInoculacao)).filter((x): x is number => x !== null && x > 0) },
-    { label: 'Amadurec.',    vals: concluidos.map(e => diasEntre(e.dataInoculacao, e.amadurecimentoFim)).filter((x): x is number => x !== null && x > 0) },
-    { label: 'Frutificação', vals: concluidos.map(e => diasEntre(e.amadurecimentoInicio, e.frutificacaoFim)).filter((x): x is number => x !== null && x > 0) },
-  ].map(f => ({ label: f.label, dias: f.vals.length ? Math.round(f.vals.reduce((a, b) => a + b, 0) / f.vals.length) : null }))), [concluidos])
-
-  const topForm = useMemo(() => {
-    const map = new Map<string, { nome: string; especie: string; cn: number | null; ebs: number[]; custos: number[]; margs: number[]; total: number }>()
-    for (const e of exps) {
-      const k = e.formulacaoId || e.formulacaoNome
-      if (!map.has(k)) map.set(k, { nome: e.formulacaoNome, especie: e.especieNome, cn: e.cnTotal, ebs: [], custos: [], margs: [], total: 0 })
-      const item = map.get(k)!
-      item.total++
-      const eb = calcEB(e); if (eb != null) item.ebs.push(eb)
-      if (e.financeiro?.custoTotalSubstrato != null) item.custos.push(e.financeiro.custoTotalSubstrato)
-      if (e.financeiro?.margemPct != null) item.margs.push(e.financeiro.margemPct)
-    }
-    return Array.from(map.entries()).map(([id, v]) => ({
-      id, nome: v.nome, especie: v.especie, cn: v.cn, totalLotes: v.total,
-      ebMedia:     v.ebs.length    ? v.ebs.reduce((a, b)    => a + b, 0) / v.ebs.length    : null,
-      custoMedio:  v.custos.length ? v.custos.reduce((a, b) => a + b, 0) / v.custos.length : null,
-      margemMedia: v.margs.length  ? v.margs.reduce((a, b)  => a + b, 0) / v.margs.length  : null,
-    })).sort((a, b) => (b.ebMedia ?? 0) - (a.ebMedia ?? 0)).slice(0, 5)
-  }, [exps])
-
-  const consumoInsumos = useMemo(() => {
-    const map = new Map<string, { nome: string; kg: number }>()
-    for (const e of exps) for (const i of (e.insumos ?? [])) {
-      if (!map.has(i.insumoId)) map.set(i.insumoId, { nome: i.nome, kg: 0 })
-      map.get(i.insumoId)!.kg += i.pesoKg
-    }
-    return Array.from(map.values()).sort((a, b) => b.kg - a.kg).slice(0, 6)
-  }, [exps])
-
-  const colheitaMensal = useMemo(() => {
-    const m: Record<string, number> = {}
-    for (const e of concluidos) {
-      const c = e.financeiro?.totalColhidoKg; if (!c || c === 0) continue
-      // usa frutificacaoFim como mês de colheita; fallback para dataPreparo
-      const mesRef = e.frutificacaoFim ?? e.dataPreparo
-      const k = mesRef?.slice(0, 7) ?? ''; if (k) m[k] = (m[k] ?? 0) + c
-    }
-    const sorted = Object.entries(m).sort(([a], [b]) => a.localeCompare(b)).slice(-6)
-    const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
-    return { labels: sorted.map(([k]) => MESES[parseInt(k.split('-')[1]) - 1]), data: sorted.map(([, v]) => +v.toFixed(1)) }
-  }, [exps])
-
-  const projecao = useMemo(() => {
-    const recEsp = ativos.reduce((s, e) => s + (e.pesoBlocoKg ?? 1.2) * e.totalBlocos * ((ebMedia ?? 60) / 100) * (e.precoVendaKg ?? 0), 0)
-    const custoAt = ativos.reduce((s, e) => s + (e.financeiro?.custoTotalSubstrato ?? 0), 0)
-    return { recEsp, custoAt, margemProj: recEsp > 0 ? ((recEsp - custoAt) / recEsp) * 100 : null }
-  }, [ativos, ebMedia])
-
-  const alertas = useMemo(() => {
-    const lista: { bg: string; color: string; dot: string; text: string }[] = []
-    for (const e of ativos.slice(0, 2)) lista.push({ bg: '#FAEEDA', color: '#633806', dot: '#BA7517', text: `${e.codigo} em andamento — monitore regularmente` })
-    if (topForm[0]) lista.push({ bg: '#EEEDFE', color: '#3C3489', dot: '#534AB7', text: `${topForm[0].nome} tem melhor EB — considere replicar` })
-    const bestMes = colheitaMensal.labels[colheitaMensal.data.indexOf(Math.max(...colheitaMensal.data, 0))]
-    if (bestMes && Math.max(...colheitaMensal.data, 0) > 0) lista.push({ bg: '#E1F5EE', color: '#085041', dot: '#0F6E56', text: `${bestMes} foi o melhor mês em colheita` })
-    return lista.slice(0, 4)
-  }, [ativos, topForm, colheitaMensal])
-
-  const filtrados = useMemo(() => exps.filter(e => (filtroEsp === 'Todas' || e.especieNome === filtroEsp) && (filtroSt === 'Todos' || e.status === filtroSt)), [exps, filtroEsp, filtroSt])
-  const especies  = useMemo(() => ['Todas', ...Array.from(new Set(exps.map(e => e.especieNome)))], [exps])
-  const statuses  = useMemo(() => ['Todos', ...Array.from(new Set(exps.map(e => e.status)))],     [exps])
-
-  function exportarCSV() {
-    const h = ['Código','Formulação','Espécie','Status','Custo','Colheita (kg)','Receita','Margem %','EB %']
-    const l = filtrados.map(e => [e.codigo, e.formulacaoNome, e.especieNome, STATUS_PT[e.status] ?? e.status, e.financeiro?.custoTotalSubstrato?.toFixed(2) ?? '', e.financeiro?.totalColhidoKg?.toFixed(1) ?? '', e.financeiro?.receitaTotal?.toFixed(2) ?? '', e.financeiro?.margemPct?.toFixed(1) ?? '', calcEB(e)?.toFixed(1) ?? ''].join(';'))
-    const blob = new Blob(['\uFEFF' + [h.join(';'), ...l].join('\n')], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob); const a = document.createElement('a')
-    a.href = url; a.download = `relatorio-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(url)
-  }
 
   const grd = 'rgba(0,0,0,0.05)'; const tx = '#888'
   const colData = { labels: colheitaMensal.labels.length ? colheitaMensal.labels : ['—'], datasets: [{ data: colheitaMensal.data.length ? colheitaMensal.data : [0], backgroundColor: colheitaMensal.data.map((_, i, a) => i === a.length - 1 ? '#534AB7' : '#AFA9EC'), borderRadius: 4, barPercentage: 0.65 }] }
@@ -613,8 +468,8 @@ function Relatorio() {
             <div className="sm:hidden" style={{ width: 36, height: 4, borderRadius: 2, background: '#E0E0E0', margin: '0 auto 16px' }} />
             <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 16 }}>Filtros</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div><label className="label">Espécie</label><select className="input" value={filtroEsp} onChange={e => setFiltroEsp(e.target.value)}>{especies.map(s => <option key={s}>{s}</option>)}</select></div>
-              <div><label className="label">Status</label><select className="input" value={filtroSt} onChange={e => setFiltroSt(e.target.value)}>{statuses.map(s => <option key={s} value={s}>{STATUS_PT[s] ?? s}</option>)}</select></div>
+              <div><label className="label">Espécie</label><select className="input" value={filtroEsp} onChange={e => setFiltroEsp(e.target.value)}>{especiesLista.map(s => <option key={s}>{s}</option>)}</select></div>
+              <div><label className="label">Status</label><select className="input" value={filtroSt} onChange={e => setFiltroSt(e.target.value)}>{statusesLista.map(s => <option key={s} value={s}>{STATUS_PT[s] ?? s}</option>)}</select></div>
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                 <button className="btn" style={{ flex: 1 }} onClick={() => { setFiltroEsp('Todas'); setFiltroSt('Todos') }}>Limpar</button>
                 <button className="btn-primary" style={{ flex: 2 }} onClick={() => setShowFiltros(false)}>Aplicar</button>

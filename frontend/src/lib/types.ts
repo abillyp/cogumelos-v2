@@ -3,6 +3,10 @@
 // Uso não autorizado é expressamente proibido. Ver arquivo LICENSE.
 // Contato: alessandro.billy@organico4you.com.br
 
+// ─── Shared union types ───────────────────────────────────────────────────────
+export type UserRole         = 'ADMIN' | 'ADMIN_TENANT' | 'PRODUTOR'
+export type ExperimentoStatus = 'PREPARACAO' | 'INOCULADO' | 'AMADURECIMENTO' | 'FRUTIFICACAO' | 'DESCANSO' | 'CONCLUIDO'
+
 export interface Insumo {
   id: string
   nome: string
@@ -95,7 +99,7 @@ export interface Experimento {
   totalBlocos: number
   pesoBlocoKg: number | null
   precoVendaKg?: number | null
-  status: 'PREPARACAO' | 'INOCULADO' | 'AMADURECIMENTO' | 'FRUTIFICACAO' | 'DESCANSO' | 'CONCLUIDO'
+  status: ExperimentoStatus
   blocosPerdidos: number
   cicloAtual: number
   blocosAtivos: number
@@ -127,7 +131,7 @@ export interface UsuarioAdmin {
   id: string
   nome: string
   email: string
-  role: string
+  role: UserRole
   ativo: boolean
   criadoEm: string
 }
@@ -136,6 +140,41 @@ export interface AuthUser {
   id: string
   nome: string
   email: string
-  role: 'ADMIN' | 'ADMIN_TENANT' | 'PRODUTOR'
+  role: UserRole
   loginType: 'GOOGLE' | 'EMAIL'
+}
+
+// ─── API response types ───────────────────────────────────────────────────────
+export interface AuthResponse extends AuthUser {
+  token: string
+}
+
+export interface CodigoSugestaoResponse {
+  codigo: string
+}
+
+// ─── Request body types ───────────────────────────────────────────────────────
+export interface MonitoramentoCreate {
+  sala: Monitoramento['sala']
+  data: string
+  temperatura: number | null
+  umidade: number | null
+  observacao: string | null
+  blocosPerdidos: number | null
+}
+
+export interface ColheitaCreate {
+  data: string
+  pesoTotalKg: number
+  notas: string | null
+}
+
+export interface CustoPorInsumoInput {
+  insumoId: string
+  custoPorKg: number
+}
+
+export interface CustosUpdate {
+  precoVendaKg: number | null
+  custos: CustoPorInsumoInput[]
 }

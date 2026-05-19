@@ -5,6 +5,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/hooks/useAuth'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import Navbar from '@/components/Navbar'
 import MobileTabBar from '@/components/MobileTabBar'
 import Footer from '@/components/Footer'
@@ -53,7 +54,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
           {/* main sem maxWidth — o conteúdo de cada página define seu próprio maxWidth */}
           <main className="sm:px-4 sm:py-6" style={{ paddingBottom: 80 }}>
-            {children}
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
           </main>
           {/* Footer com links legais e DPO — apenas desktop */}
           <div className="hidden sm:block">

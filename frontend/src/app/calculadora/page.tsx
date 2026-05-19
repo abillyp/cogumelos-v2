@@ -4,16 +4,13 @@
 // Contato: alessandro.billy@organico4you.com.br
 
 'use client'
-import { useEffect, useState } from 'react'
-import { api } from '@/lib/api'
-import { Insumo, Especie, Formulacao } from '@/lib/types'
-import { toNum, calcular, calcularAgua, type LinhaCalculo } from '@/lib/calculos'
+import { useState } from 'react'
+import { toNum, calcular, calcularAgua } from '@/lib/calculos'
+import { Formulacao, Insumo, Especie } from '@/lib/types'
 import { MetricCard, CnAlert, ContribuicaoBar, Modal } from '@/components/Components'
 import ProtectedRoute from '@/components/ProtectedRoute'
-
-type Linha = LinhaCalculo
-
-const DRAFT_KEY = 'cogumelos:calc-draft'
+import { useCalculadora, type Linha } from '@/hooks/useCalculadora'
+import { api, toErrorMessage } from '@/lib/api'
 const BAR_COLORS = ['var(--purple)','var(--teal-m)','var(--amber)','var(--blue)','#D2A8FF']
 
 function numericOnChange(setter: (v: string | number) => void) {
@@ -126,7 +123,7 @@ function ModalEdicao({ formulacao, insumos, especies, onFechar, onSalva }: {
   const [erro, setErro]                   = useState('')
 
   const especie = especies.find(e => e.id === especieId)
-  const { cnTotal, totalPeso, totalPesoSeco, totalPesoUmido } = calcular(linhas, insumos)
+  const { cnTotal, totalPeso, totalPesoSeco } = calcular(linhas, insumos)
 
   const umidNum = toNum(umidadeDesejada)
   const agua = (umidadeDesejada !== '' && totalPesoSeco > 0)
@@ -168,8 +165,8 @@ function ModalEdicao({ formulacao, insumos, especies, onFechar, onSalva }: {
       })
       onSalva()
       onFechar()
-    } catch (e: any) {
-      setErro(e.message || 'Erro ao salvar.')
+    } catch (e: unknown) {
+      setErro(toErrorMessage(e, 'Erro ao salvar.'))
     } finally {
       setSalvando(false)
     }
@@ -280,8 +277,7 @@ function ModalEdicao({ formulacao, insumos, especies, onFechar, onSalva }: {
             {salvando ? 'Salvando...' : 'Salvar'}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -294,23 +290,36 @@ function BotaoRemover({ formulacao, onRemovida, variant = 'mobile' }: {
   const [emUso, setEmUso]             = useState<boolean | null>(null)
   const [loading, setLoading]         = useState(false)
   const [confirmando, setConfirmando] = useState(false)
+  const [erro, setErro]               = useState('')
 
   async function verificar() {
-    setLoading(true)
+    setLoading(true); setErro('')
     try {
       const resultado = await api.formulacoes.emUso(formulacao.id) as boolean
       setEmUso(resultado)
       if (!resultado) setConfirmando(true)
+    } catch (e: unknown) {
+      setErro(toErrorMessage(e, 'Erro ao verificar uso.'))
     } finally {
       setLoading(false)
     }
   }
 
   async function confirmarRemocao() {
+    setErro('')
     try {
       await api.formulacoes.deletar(formulacao.id)
       onRemovida()
-    } catch (e: any) { alert(e.message) }
+    } catch (e: unknown) { setErro(toErrorMessage(e, 'Erro ao remover.')) }
+  }
+
+  if (erro) {
+    return (
+      <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <span style={{ fontSize: 11, color: 'var(--red)' }}>{erro}</span>
+        <button onClick={() => { setErro(''); setConfirmando(false); setEmUso(null) }} style={{ fontSize: 11, color: '#888', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+      </span>
+    )
   }
 
   if (emUso === true) {
@@ -348,59 +357,21 @@ export default function CalculadoraPage() {
 }
 
 function Calculadora() {
-  const [insumos, setInsumos]         = useState<Insumo[]>([])
-  const [especies, setEspecies]       = useState<Especie[]>([])
-  const [formulacoes, setFormulacoes] = useState<Formulacao[]>([])
-  const [especieId, setEspecieId]     = useState('')
-  const [nome, setNome]               = useState('')
-  const [linhas, setLinhas]           = useState<Linha[]>([{ insumoId:'', pesoRealKg:0, umidadePct:40 }])
-  const [umidadeDesejada, setUmidadeDesejada] = useState<number | string>('')
-  const [pesoBlocoKg, setPesoBlocoKg]         = useState<number | string>('')
-  const [salvando, setSalvando]       = useState(false)
-  const [msg, setMsg]                 = useState('')
-  const [msgOk, setMsgOk]             = useState(false)
+  const {
+    insumos, especies, formulacoes,
+    nome, setNome, especieId, setEspecieId,
+    linhas, setLinhas, setLinha,
+    umidadeDesejada, setUmidadeDesejada,
+    pesoBlocoKg, setPesoBlocoKg,
+    especie, cnTotal, phMedio, totalPeso, totalPesoSeco,
+    contribsPct, agua, pesoFinal, qtdBlocos,
+    salvar, duplicarFormulacao, recarregarFormulacoes,
+    salvando, msg, msgOk,
+  } = useCalculadora()
+
   const [showFormulacoes, setShowFormulacoes] = useState(false)
   const [modalConsulta, setModalConsulta]     = useState<Formulacao | null>(null)
   const [modalEdicao, setModalEdicao]         = useState<Formulacao | null>(null)
-
-  useEffect(() => {
-    api.insumos.listar().then((d:any) => setInsumos(d))
-    api.especies.listar().then((d:any) => { setEspecies(d); if (d[0]) setEspecieId(d[0].id) })
-    api.formulacoes.listar().then((d:any) => setFormulacoes(d))
-    try {
-      const draft = localStorage.getItem(DRAFT_KEY)
-      if (draft) {
-        const { nome:n, especieId:eid, linhas:l, umidadeDesejada:u, pesoBlocoKg:p } = JSON.parse(draft)
-        if (n)    setNome(n)
-        if (eid)  setEspecieId(eid)
-        if (l?.length) setLinhas(l)
-        if (u)    setUmidadeDesejada(u)
-        if (p)    setPesoBlocoKg(p)
-      }
-    } catch { /* ignora */ }
-  }, [])
-
-  useEffect(() => {
-    try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ nome, especieId, linhas, umidadeDesejada, pesoBlocoKg })) } catch { /* ignora */ }
-  }, [nome, especieId, linhas, umidadeDesejada, pesoBlocoKg])
-
-  const especie = especies.find(e => e.id === especieId)
-  const { cnTotal, phMedio, totalPeso, contribs, totalC, totalPesoSeco, totalPesoUmido } = calcular(linhas, insumos)
-  const contribsPct = contribs.map(({ id, nome, cKg }) => ({ id, nome, pct: totalC > 0 ? (cKg/totalC)*100 : 0 })).filter(c => c.pct > 0)
-
-  const umidNum = toNum(umidadeDesejada)
-  const agua = (umidadeDesejada !== '' && totalPeso > 0)
-    ? calcularAgua(totalPesoSeco, totalPeso, umidNum)
-    : null
-  const pesoFinal = agua !== null ? totalPeso + agua : null
-  const pesoNum = toNum(pesoBlocoKg)
-  const qtdBlocos = (pesoFinal !== null && pesoBlocoKg !== '' && pesoNum > 0)
-    ? Math.round((pesoFinal / pesoNum) * 100) / 100
-    : null
-
-  function setLinha(i: number, field: keyof Linha, value: string | number) {
-    setLinhas(l => l.map((row, idx) => idx === i ? { ...row, [field]: value } : row))
-  }
 
   function linhaOnChange(i: number, field: keyof Linha) {
     return (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -411,41 +382,9 @@ function Calculadora() {
     }
   }
 
-  function duplicarFormulacao(f: Formulacao) {
-    setNome(f.nome + ' (cópia)')
-    setEspecieId(f.especieId)
-    setLinhas(f.insumos.map(fi => ({ insumoId: fi.insumoId, pesoRealKg: fi.pesoRealKg, umidadePct: Math.round(fi.umidadePct * 100) })))
-    setUmidadeDesejada(f.umidadeDesejada ?? '')
-    setPesoBlocoKg(f.pesoBlocoKg ?? '')
+  function duplicar(f: Formulacao) {
+    duplicarFormulacao(f)
     setShowFormulacoes(false)
-  }
-
-  function recarregarFormulacoes() {
-    api.formulacoes.listar().then((d:any) => setFormulacoes(d))
-  }
-
-  async function salvar() {
-    if (!especieId || !nome.trim()) { setMsg('Preencha nome e espécie.'); setMsgOk(false); return }
-    if (umidadeDesejada === '') { setMsg('Informe a umidade desejada.'); setMsgOk(false); return }
-    if (pesoBlocoKg === '') { setMsg('Informe o peso por bloco.'); setMsgOk(false); return }
-    const validas = linhas.filter(l => l.insumoId && toNum(l.pesoRealKg) > 0)
-    if (!validas.length) { setMsg('Adicione pelo menos um insumo.'); setMsgOk(false); return }
-    setSalvando(true); setMsg('')
-    try {
-      await api.formulacoes.criar({
-        especieId, nome,
-        insumos: validas.map(l => ({ ...l, pesoRealKg: toNum(l.pesoRealKg), umidadePct: toNum(l.umidadePct)/100 })),
-        umidadeDesejada: umidNum,
-        pesoBlocoKg: pesoNum,
-        totalBlocos: qtdBlocos,
-      })
-      setMsg('Formulação salva!'); setMsgOk(true)
-      setNome(''); setLinhas([{ insumoId:'', pesoRealKg:0, umidadePct:40 }])
-      setUmidadeDesejada(''); setPesoBlocoKg('')
-      localStorage.removeItem(DRAFT_KEY)
-      recarregarFormulacoes()
-    } catch(e:any) { setMsg(e.message); setMsgOk(false) }
-    finally { setSalvando(false) }
   }
 
   return (
@@ -670,7 +609,7 @@ function Calculadora() {
                   </span>
                 </div>
                 <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                  <button className="btn" style={{ fontSize:12, padding:'6px 12px' }} onClick={() => duplicarFormulacao(f)}>Duplicar</button>
+                  <button className="btn" style={{ fontSize:12, padding:'6px 12px' }} onClick={() => duplicar(f)}>Duplicar</button>
                   <button className="btn" style={{ fontSize:12, padding:'6px 12px' }} onClick={() => { setShowFormulacoes(false); setModalConsulta(f) }}>Consultar</button>
                   <BotaoRemover formulacao={f} onRemovida={recarregarFormulacoes} variant="mobile" />
                 </div>

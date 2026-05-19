@@ -2,7 +2,7 @@
 'use client'
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { api } from '@/lib/api'
+import { api, toErrorMessage } from '@/lib/api'
 
 function RedefinirSenhaForm() {
   const router = useRouter()
@@ -18,13 +18,13 @@ function RedefinirSenhaForm() {
   async function handleSubmit() {
     setErro('')
     if (novaSenha !== confirmar) { setErro('As senhas não coincidem.'); return }
-    if (novaSenha.length < 6) { setErro('A senha deve ter pelo menos 6 caracteres.'); return }
+    if (novaSenha.length < 8) { setErro('A senha deve ter pelo menos 8 caracteres.'); return }
     setLoading(true)
     try {
       await api.auth.redefinirSenha(token, novaSenha)
       setSucesso(true)
-    } catch (e: any) {
-      setErro(e.message || 'Token inválido ou expirado.')
+    } catch (e: unknown) {
+      setErro(toErrorMessage(e, 'Token inválido ou expirado.'))
     } finally {
       setLoading(false)
     }
@@ -54,13 +54,13 @@ function RedefinirSenhaForm() {
       <div style={{ marginBottom: 16 }}>
         <label style={labelStyle}>Nova senha</label>
         <input type="password" value={novaSenha} onChange={e => setNovaSenha(e.target.value)}
-          placeholder="Mínimo 6 caracteres" style={inputStyle} />
+          placeholder="Mínimo 8 caracteres" style={inputStyle} maxLength={128} />
       </div>
 
       <div style={{ marginBottom: 16 }}>
         <label style={labelStyle}>Confirmar senha</label>
         <input type="password" value={confirmar} onChange={e => setConfirmar(e.target.value)}
-          placeholder="Repita a nova senha" style={inputStyle} />
+          placeholder="Repita a nova senha" style={inputStyle} maxLength={128} />
       </div>
 
       {erro && <p style={{ color: 'var(--red)', fontSize: 13, marginBottom: 12 }}>{erro}</p>}

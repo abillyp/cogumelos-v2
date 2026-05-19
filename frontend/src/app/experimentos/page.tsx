@@ -4,18 +4,23 @@
 // Contato: alessandro.billy@organico4you.com.br
 
 'use client'
-import { useEffect, useState, useRef, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useEffect, useState, useRef, useReducer, memo, Suspense, createContext, useContext } from 'react'
 import { DayPicker } from 'react-day-picker'
 import { format, parse, isValid } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import 'react-day-picker/dist/style.css'
-import { api } from '@/lib/api'
-import { Experimento, Formulacao, Monitoramento, Colheita } from '@/lib/types'
+import { api, toErrorMessage } from '@/lib/api'
+import type { Experimento, Formulacao, Monitoramento, Colheita, MonitoramentoCreate, ColheitaCreate, CustosUpdate, ExperimentoInsumo } from '@/lib/types'
 import { statusOrderIndex, proximaFaseSimples } from '@/lib/calculos'
-import { MiniChart, StatCard } from '@/components/Components'
+import {
+  monitoramentoInicial, monitoramentoReducer,
+  colheitaInicial, colheitaReducer,
+  custosInicial, custosReducer,
+} from '@/lib/reducers'
+import { MiniChart, StatCard, Modal } from '@/components/Components'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useAuth } from '@/hooks/useAuth'
+import { useExperimentos, type NovoExpData } from '@/hooks/useExperimentos'
 
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -120,8 +125,7 @@ function ModalAvancarFase({ exp, onConfirmar, onFechar }: { exp: Experimento; on
   const emFrut = exp.status === 'FRUTIFICACAO'
   const emDesc = exp.status === 'DESCANSO'
   return (
-    <div onClick={onFechar} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: 20, width: '100%', maxWidth: 400 }}>
+    <Modal onClose={onFechar} maxWidth={400}>
         <p style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 4 }}>Avançar fase</p>
         <p style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>
           Fase atual: <strong style={{ color: '#111' }}>{STATUS_LABEL[exp.status]}{(emFrut || emDesc) ? ` — ciclo ${exp.cicloAtual}` : ''}</strong>
@@ -153,8 +157,7 @@ function ModalAvancarFase({ exp, onConfirmar, onFechar }: { exp: Experimento; on
         <button onClick={onFechar} style={{ marginTop: 14, width: '100%', background: 'none', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 8, padding: '10px', fontSize: 13, color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
           Cancelar
         </button>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -174,7 +177,7 @@ function ModalDeletarExperimento({ exp, onConfirmar, onFechar }: {
 
   useEffect(() => {
     api.experimentos.resumoDelete(exp.id)
-      .then((d: any) => setResumo(d))
+      .then(d => setResumo(d as ResumoDelete))
       .finally(() => setCarregando(false))
   }, [exp.id])
 
@@ -185,8 +188,7 @@ function ModalDeletarExperimento({ exp, onConfirmar, onFechar }: {
   }
 
   return (
-    <div onClick={onFechar} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: 20, width: '100%', maxWidth: 420 }}>
+    <Modal onClose={onFechar} maxWidth={420}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <p style={{ fontSize: 16, fontWeight: 700, color: '#791F1F', margin: 0 }}>Deletar experimento</p>
           <button onClick={onFechar} style={{ background: '#F0F0F0', border: 'none', width: 32, height: 32, borderRadius: '50%', fontSize: 16, color: '#555', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
@@ -226,8 +228,7 @@ function ModalDeletarExperimento({ exp, onConfirmar, onFechar }: {
             {deletando ? 'Deletando...' : 'Deletar permanentemente'}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -239,6 +240,12 @@ function ModalEtiquetas({ exp, onFechar }: { exp: Experimento; onFechar: () => v
 
   const expUrl   = `${typeof window !== 'undefined' ? window.location.origin : 'https://app.organico4you.com.br'}/experimentos?exp=${encodeURIComponent(exp.codigo)}`
   const qrSrc    = `/api/qr?url=${encodeURIComponent(expUrl)}`
+
+  function escapeHtml(s: string | null | undefined): string {
+    if (!s) return ''
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+  }
 
   function pad(n: number) { return String(n).padStart(3, '0') }
 
@@ -257,7 +264,7 @@ function ModalEtiquetas({ exp, onFechar }: { exp: Experimento; onFechar: () => v
   function etiquetaHtml(num: number) {
     return `
       <div style="width:220px;border:1.5px solid #222;border-radius:8px;overflow:hidden;font-family:monospace;background:#fff;display:inline-block;margin:4mm;vertical-align:top;">
-        <div style="background:${cor};padding:8px 12px;display:flex;align-items:center;gap:10px;">
+        <div style="background:${escapeHtml(cor)};padding:8px 12px;display:flex;align-items:center;gap:10px;">
           <div style="width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid rgba(255,255,255,0.5);flex-shrink:0;"></div>
           <div>
             <div style="font-size:10px;color:rgba(255,255,255,0.75);letter-spacing:.05em;">BLOCO</div>
@@ -266,15 +273,15 @@ function ModalEtiquetas({ exp, onFechar }: { exp: Experimento; onFechar: () => v
         </div>
         <div style="padding:8px 12px;background:#fff;display:flex;gap:8px;align-items:flex-start;">
           <table style="flex:1;font-size:10px;border-collapse:collapse;font-family:monospace;">
-            <tr><td style="color:#888;padding:1px 0;width:68px;">Experimento</td><td style="color:#111;font-weight:700;padding:1px 0;">${exp.codigo}</td></tr>
-            <tr><td style="color:#888;padding:1px 0;">Espécie</td><td style="color:#111;padding:1px 0;">${exp.especieNome}</td></tr>
-            <tr><td style="color:#888;padding:1px 0;">Formulação</td><td style="color:#111;padding:1px 0;">${exp.formulacaoNome}</td></tr>
-            <tr><td style="color:#888;padding:1px 0;">Preparo</td><td style="color:#111;padding:1px 0;">${fmtData(exp.dataPreparo)}</td></tr>
+            <tr><td style="color:#888;padding:1px 0;width:68px;">Experimento</td><td style="color:#111;font-weight:700;padding:1px 0;">${escapeHtml(exp.codigo)}</td></tr>
+            <tr><td style="color:#888;padding:1px 0;">Espécie</td><td style="color:#111;padding:1px 0;">${escapeHtml(exp.especieNome)}</td></tr>
+            <tr><td style="color:#888;padding:1px 0;">Formulação</td><td style="color:#111;padding:1px 0;">${escapeHtml(exp.formulacaoNome)}</td></tr>
+            <tr><td style="color:#888;padding:1px 0;">Preparo</td><td style="color:#111;padding:1px 0;">${escapeHtml(fmtData(exp.dataPreparo))}</td></tr>
           </table>
-          <img src="${qrSrc}" width="48" height="48" style="flex-shrink:0;border-radius:3px;">
+          <img src="${escapeHtml(qrSrc)}" width="48" height="48" style="flex-shrink:0;border-radius:3px;">
         </div>
         <div style="padding:4px 12px;background:#f7f6f3;border-top:1px solid #eee;">
-          <span style="font-size:9px;color:#bbb;">cogumelos.app · ${exp.codigo}-${pad(num)}</span>
+          <span style="font-size:9px;color:#bbb;">cogumelos.app · ${escapeHtml(exp.codigo)}-${pad(num)}</span>
         </div>
       </div>
     `
@@ -289,7 +296,7 @@ function ModalEtiquetas({ exp, onFechar }: { exp: Experimento; onFechar: () => v
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Etiquetas — ${exp.codigo}</title>
+          <title>Etiquetas — ${escapeHtml(exp.codigo)}</title>
           <style>
             body { margin: 0; padding: 8mm; font-family: monospace; }
             @media print { body { margin: 0; padding: 4mm; } }
@@ -313,8 +320,7 @@ function ModalEtiquetas({ exp, onFechar }: { exp: Experimento; onFechar: () => v
   const blocos = getBlocos()
 
   return (
-    <div onClick={onFechar} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: 20, width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}>
+    <Modal onClose={onFechar} maxWidth={480}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -414,13 +420,12 @@ function ModalEtiquetas({ exp, onFechar }: { exp: Experimento; onFechar: () => v
             🖨️ Imprimir {blocos.length} {blocos.length === 1 ? 'etiqueta' : 'etiquetas'}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
 // ─── ExpCard ──────────────────────────────────────────────────────────────────
-function ExpCard({ e, onAbrir }: { e: Experimento; onAbrir: (e: Experimento) => void }) {
+const ExpCard = memo(function ExpCard({ e, onAbrir }: { e: Experimento; onAbrir: (e: Experimento) => void }) {
   const st = STATUS_STYLE[e.status] ?? STATUS_STYLE.PREPARACAO
   const perdidos = e.blocosPerdidos ?? 0
   const ativos = e.totalBlocos - perdidos
@@ -445,10 +450,12 @@ function ExpCard({ e, onAbrir }: { e: Experimento; onAbrir: (e: Experimento) => 
       </div>
     </div>
   )
-}
+})
 
-// ─── DetalheContent ───────────────────────────────────────────────────────────
-interface DetalheProps {
+// ─── DetalheContent — Context ─────────────────────────────────────────────────
+// Elimina os 13 props de DetalheContent substituindo-os por um context escopado
+// ao modal, criado no render de Experimentos e consumido aqui.
+interface DetalheCtxValue {
   selected: Experimento
   monitoramentos: Monitoramento[]
   colheitas: Colheita[]
@@ -460,81 +467,76 @@ interface DetalheProps {
   onAvancar: () => void
   onDeletar: () => void
   onEtiquetas: () => void
-  podeAdmin: boolean
-  onSalvarMon: (data: any) => Promise<void>
-  onSalvarColheita: (data: any) => Promise<void>
-  onSalvarCustos: (data: any) => Promise<void>
+  onSalvarMon: (data: MonitoramentoCreate) => Promise<void>
+  onSalvarColheita: (data: ColheitaCreate) => Promise<void>
+  onSalvarCustos: (data: CustosUpdate) => Promise<void>
 }
 
-function DetalheContent({
-  selected, monitoramentos, colheitas,
-  abaDetalhe, setAbaDetalhe,
-  verTodosMonitor, setVerTodosMonitor,
-  isAdmin, onAvancar, onDeletar, onEtiquetas, podeAdmin,
-  onSalvarMon, onSalvarColheita, onSalvarCustos,
-}: DetalheProps) {
+const DetalheCtx = createContext<DetalheCtxValue | null>(null)
+function useDetalheCtx() {
+  const ctx = useContext(DetalheCtx)
+  if (!ctx) throw new Error('useDetalheCtx fora do DetalheCtx.Provider')
+  return ctx
+}
+
+function DetalheContent() {
+  const {
+    selected, monitoramentos, colheitas,
+    abaDetalhe, setAbaDetalhe,
+    verTodosMonitor, setVerTodosMonitor,
+    isAdmin, onAvancar, onDeletar, onEtiquetas,
+    onSalvarMon, onSalvarColheita, onSalvarCustos,
+  } = useDetalheCtx()
   const emFrut = selected.status === 'FRUTIFICACAO'
   const emDesc = selected.status === 'DESCANSO'
   const perdidos = selected.blocosPerdidos ?? 0
   const ativos = selected.totalBlocos - perdidos
 
-  const [sala, setSala]               = useState('FRUTIFICACAO')
-  const [dataM, setDataM]             = useState(new Date().toISOString().slice(0, 10))
-  const [temp, setTemp]               = useState('')
-  const [umid, setUmid]               = useState('')
-  const [obs, setObs]                 = useState('')
-  const [blocosPerdidosInput, setBlocosPerdidosInput] = useState('')
-  const [erroMon, setErroMon]         = useState('')
-  const [dataC, setDataC]             = useState(new Date().toISOString().slice(0, 10))
-  const [pesoTotal, setPesoTotal]     = useState('')
-  const [notasC, setNotasC]           = useState('')
-  const [erroCol, setErroCol]         = useState('')
-  const [precoVendaKg, setPrecoVendaKg] = useState(selected.precoVendaKg?.toString() ?? '')
-  const [custos, setCustos]           = useState<Record<string, string>>(() => {
-    const m: Record<string, string> = {}
-    selected.custos?.forEach((c: any) => { m[c.insumoId] = c.custoPorKg?.toString() ?? '' })
-    return m
-  })
-  const [salvandoCustos, setSalvandoCustos] = useState(false)
-  const [erroCustos, setErroCustos]   = useState('')
+  const [mon, dispatchMon]       = useReducer(monitoramentoReducer, null, monitoramentoInicial)
+  const [col, dispatchCol]       = useReducer(colheitaReducer, null, colheitaInicial)
+  const [cst, dispatchCst]       = useReducer(custosReducer, undefined, () =>
+    custosInicial(selected.precoVendaKg, selected.custos ?? [])
+  )
 
-  const tempsChart   = monitoramentos.slice(0, 7).reverse().map(m => m.temperatura ?? 0)
-  const umidsChart   = monitoramentos.slice(0, 7).reverse().map(m => m.umidade ?? 0)
-  const monitorsVis  = verTodosMonitor ? monitoramentos : monitoramentos.slice(0, 5)
-  const totalColhExp = colheitas.reduce((s, c) => s + c.pesoTotalKg, 0)
-  const blocosRestantes = ativos - (parseInt(blocosPerdidosInput) || 0)
+  const tempsChart      = monitoramentos.slice(0, 7).reverse().map(m => m.temperatura ?? 0)
+  const umidsChart      = monitoramentos.slice(0, 7).reverse().map(m => m.umidade ?? 0)
+  const monitorsVis     = verTodosMonitor ? monitoramentos : monitoramentos.slice(0, 5)
+  const totalColhExp    = colheitas.reduce((s, c) => s + c.pesoTotalKg, 0)
+  const blocosRestantes = ativos - (parseInt(mon.blocosPerdidos) || 0)
 
   async function salvarMon() {
-    setErroMon('')
+    dispatchMon({ type: 'SET_ERRO', value: '' })
     try {
       await onSalvarMon({
-        sala, data: dataM,
-        temperatura:    temp ? parseFloat(temp) : null,
-        umidade:        umid ? parseFloat(umid) : null,
-        observacao:     obs || null,
-        blocosPerdidos: blocosPerdidosInput ? parseInt(blocosPerdidosInput) : null,
+        sala: mon.sala, data: mon.data,
+        temperatura:    mon.temp ? parseFloat(mon.temp) : null,
+        umidade:        mon.umid ? parseFloat(mon.umid) : null,
+        observacao:     mon.obs || null,
+        blocosPerdidos: mon.blocosPerdidos ? parseInt(mon.blocosPerdidos) : null,
       })
-      setObs(''); setTemp(''); setUmid(''); setBlocosPerdidosInput('')
-    } catch (e: any) { setErroMon(e.message) }
+      dispatchMon({ type: 'RESET' })
+    } catch (e: unknown) { dispatchMon({ type: 'SET_ERRO', value: toErrorMessage(e) }) }
   }
 
   async function salvarColheita() {
-    if (!pesoTotal) return; setErroCol('')
+    if (!col.pesoTotal) return
+    dispatchCol({ type: 'SET_ERRO', value: '' })
     try {
-      await onSalvarColheita({ data: dataC, pesoTotalKg: parseFloat(pesoTotal), notas: notasC || null })
-      setPesoTotal(''); setNotasC('')
-    } catch (e: any) { setErroCol(e.message) }
+      await onSalvarColheita({ data: col.data, pesoTotalKg: parseFloat(col.pesoTotal), notas: col.notas || null })
+      dispatchCol({ type: 'RESET' })
+    } catch (e: unknown) { dispatchCol({ type: 'SET_ERRO', value: toErrorMessage(e) }) }
   }
 
   async function salvarCustos() {
-    setSalvandoCustos(true); setErroCustos('')
+    dispatchCst({ type: 'SET_SALVANDO', value: true })
+    dispatchCst({ type: 'SET_ERRO', value: '' })
     try {
       await onSalvarCustos({
-        precoVendaKg: precoVendaKg ? parseFloat(precoVendaKg) : null,
-        custos: Object.entries(custos).filter(([, v]) => v !== '').map(([insumoId, v]) => ({ insumoId, custoPorKg: parseFloat(v) })),
+        precoVendaKg: cst.precoVendaKg ? parseFloat(cst.precoVendaKg) : null,
+        custos: Object.entries(cst.custos).filter(([, v]) => v !== '').map(([insumoId, v]) => ({ insumoId, custoPorKg: parseFloat(v) })),
       })
-    } catch (e: any) { setErroCustos(e.message) }
-    finally { setSalvandoCustos(false) }
+    } catch (e: unknown) { dispatchCst({ type: 'SET_ERRO', value: toErrorMessage(e) }) }
+    finally { dispatchCst({ type: 'SET_SALVANDO', value: false }) }
   }
 
   return (
@@ -561,7 +563,7 @@ function DetalheContent({
             {selected.status !== 'CONCLUIDO' && (
               <button className="btn-primary" style={{ fontSize: 13 }} onClick={onAvancar}>Avançar →</button>
             )}
-            {podeAdmin && (
+            {isAdmin && (
               <button onClick={onDeletar} style={{ background: 'none', color: '#A32D2D', border: '0.5px solid #F09595', borderRadius: 8, padding: '8px 10px', fontSize: 16, cursor: 'pointer' }} title="Deletar experimento">🗑</button>
             )}
           </div>
@@ -615,19 +617,19 @@ function DetalheContent({
         <div className="card">
           <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Registrar monitoramento</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-            <div><label className="label">Data</label><DateInput className="input text-sm" value={dataM} onChange={setDataM} /></div>
+            <div><label className="label">Data</label><DateInput className="input text-sm" value={mon.data} onChange={v => dispatchMon({ type: 'SET_DATA', value: v })} /></div>
             <div><label className="label">Sala</label>
-              <select className="input text-sm" value={sala} onChange={e => setSala(e.target.value)}>
+              <select className="input text-sm" value={mon.sala} onChange={e => dispatchMon({ type: 'SET_SALA', value: e.target.value as Monitoramento['sala'] })}>
                 <option value="AMADURECIMENTO">Amadurecimento</option>
                 <option value="FRUTIFICACAO">Frutificação</option>
                 <option value="DESCANSO">Descanso</option>
               </select>
             </div>
             <div><label className="label">Temp (°C)</label>
-              <input type="number" step={0.1} className="input text-sm" value={temp} onChange={e => setTemp(e.target.value)} placeholder="22" />
+              <input type="number" step={0.1} className="input text-sm" value={mon.temp} onChange={e => dispatchMon({ type: 'SET_TEMP', value: e.target.value })} placeholder="22" />
             </div>
             <div><label className="label">Umidade (%)</label>
-              <input type="number" className="input text-sm" value={umid} onChange={e => setUmid(e.target.value)} placeholder="85" />
+              <input type="number" className="input text-sm" value={mon.umid} onChange={e => dispatchMon({ type: 'SET_UMID', value: e.target.value })} placeholder="85" />
             </div>
           </div>
           <div style={{ background: '#FCEBEB', border: '0.5px solid #F09595', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
@@ -635,17 +637,17 @@ function DetalheContent({
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <input type="number" min={0} max={ativos} placeholder="0"
                 className="input text-sm" style={{ width: 80 }}
-                value={blocosPerdidosInput} onChange={e => setBlocosPerdidosInput(e.target.value)} />
+                value={mon.blocosPerdidos} onChange={e => dispatchMon({ type: 'SET_BLOCOS_PERDIDOS', value: e.target.value })} />
               <span style={{ fontSize: 12, color: '#A32D2D' }}>
                 blocos perdidos → restam <strong style={{ color: '#791F1F' }}>{blocosRestantes}</strong> de {selected.totalBlocos}
               </span>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-            <input className="input text-sm" style={{ flex: 1 }} value={obs} onChange={e => setObs(e.target.value)} placeholder="Observação (opcional)..." />
+            <input className="input text-sm" style={{ flex: 1 }} value={mon.obs} onChange={e => dispatchMon({ type: 'SET_OBS', value: e.target.value })} placeholder="Observação (opcional)..." />
             <button className="btn-primary" onClick={salvarMon}>Salvar</button>
           </div>
-          {erroMon && <p style={{ fontSize: 12, color: 'var(--red)', marginBottom: 8 }}>{erroMon}</p>}
+          {mon.erro && <p style={{ fontSize: 12, color: 'var(--red)', marginBottom: 8 }}>{mon.erro}</p>}
           {monitoramentos.length > 0 && (
             <>
               <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
@@ -687,16 +689,16 @@ function DetalheContent({
         <div className="card">
           <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Registrar colheita — ciclo {selected.cicloAtual}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-            <div><label className="label">Data</label><DateInput className="input text-sm" value={dataC} onChange={setDataC} /></div>
+            <div><label className="label">Data</label><DateInput className="input text-sm" value={col.data} onChange={v => dispatchCol({ type: 'SET_DATA', value: v })} /></div>
             <div><label className="label">Peso total (kg)</label>
-              <input type="number" step={0.1} className="input text-sm" value={pesoTotal} onChange={e => setPesoTotal(e.target.value)} placeholder="28.4" />
+              <input type="number" step={0.1} className="input text-sm" value={col.pesoTotal} onChange={e => dispatchCol({ type: 'SET_PESO', value: e.target.value })} placeholder="28.4" />
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-            <input className="input text-sm" style={{ flex: 1 }} value={notasC} onChange={e => setNotasC(e.target.value)} placeholder="Notas (opcional)..." />
+            <input className="input text-sm" style={{ flex: 1 }} value={col.notas} onChange={e => dispatchCol({ type: 'SET_NOTAS', value: e.target.value })} placeholder="Notas (opcional)..." />
             <button className="btn-primary" onClick={salvarColheita}>Salvar</button>
           </div>
-          {erroCol && <p style={{ fontSize: 12, color: 'var(--red)', marginBottom: 8 }}>{erroCol}</p>}
+          {col.erro && <p style={{ fontSize: 12, color: 'var(--red)', marginBottom: 8 }}>{col.erro}</p>}
           {colheitas.length > 0 && (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 12 }}>
@@ -737,16 +739,16 @@ function DetalheContent({
           <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Custos e venda</h3>
           <div style={{ marginBottom: 12 }}>
             <label className="label">Preço de venda (R$/kg)</label>
-            <input type="number" step={0.01} className="input text-sm" value={precoVendaKg}
-              onChange={e => setPrecoVendaKg(e.target.value)} placeholder="35.00" />
+            <input type="number" step={0.01} className="input text-sm" value={cst.precoVendaKg}
+              onChange={e => dispatchCst({ type: 'SET_PRECO', value: e.target.value })} placeholder="35.00" />
           </div>
           {(selected.insumos ?? []).length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
-              {(selected.insumos ?? []).map((i: any) => (
+              {(selected.insumos ?? []).map((i: ExperimentoInsumo) => (
                 <div key={i.insumoId} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ flex: 1, fontSize: 13, color: '#333' }}>{i.nome} <span style={{ color: '#bbb' }}>— {i.pesoKg} kg</span></span>
                   <input type="number" step={0.01} placeholder="R$/kg" className="input text-xs" style={{ width: 90 }}
-                    value={custos[i.insumoId] ?? ''} onChange={e => setCustos(prev => ({ ...prev, [i.insumoId]: e.target.value }))} />
+                    value={cst.custos[i.insumoId] ?? ''} onChange={e => dispatchCst({ type: 'SET_CUSTO', insumoId: i.insumoId, value: e.target.value })} />
                 </div>
               ))}
             </div>
@@ -769,9 +771,9 @@ function DetalheContent({
               </div>
             </div>
           )}
-          {erroCustos && <p style={{ fontSize: 12, color: 'var(--red)', marginBottom: 8 }}>{erroCustos}</p>}
-          <button className="btn-primary" onClick={salvarCustos} disabled={salvandoCustos} style={{ width: '100%' }}>
-            {salvandoCustos ? 'Salvando...' : 'Salvar custos'}
+          {cst.erro && <p style={{ fontSize: 12, color: 'var(--red)', marginBottom: 8 }}>{cst.erro}</p>}
+          <button className="btn-primary" onClick={salvarCustos} disabled={cst.salvando} style={{ width: '100%' }}>
+            {cst.salvando ? 'Salvando...' : 'Salvar custos'}
           </button>
         </div>
       )}
@@ -780,19 +782,38 @@ function DetalheContent({
 }
 
 // ─── NovoExpForm ──────────────────────────────────────────────────────────────
-interface NovoExpFormProps {
+// Estado do formulário encapsulado no próprio componente — o hook da página
+// não precisa conhecer campos que só existem enquanto este form está aberto.
+const NovoExpForm = memo(function NovoExpForm({ formulacoes, onCriar, onCancelar }: {
   formulacoes: Formulacao[]
-  formulacaoId: string; setFormulacaoId: (v: string) => void
-  codigo: string; setCodigo: (v: string) => void
-  dataPreparo: string; setDataPreparo: (v: string) => void
-  totalBlocos: number; setTotalBlocos: (v: number) => void
-  pesoBlocoKg: number; setPesoBlocoKg: (v: number) => void
-  criando: boolean; erroCreate: string
-  onCriar: () => void
+  onCriar: (data: NovoExpData) => Promise<void>
   onCancelar: () => void
-}
+}) {
+  const [formulacaoId, setFormulacaoId] = useState(formulacoes[0]?.id ?? '')
+  const [codigo, setCodigo]             = useState('')
+  const [dataPreparo, setDataPreparo]   = useState('')
+  const [totalBlocos, setTotalBlocos]   = useState(40)
+  const [pesoBlocoKg, setPesoBlocoKg]   = useState(1.2)
+  const [criando, setCriando]           = useState(false)
+  const [erroCreate, setErroCreate]     = useState('')
 
-function NovoExpForm({ formulacoes, formulacaoId, setFormulacaoId, codigo, setCodigo, dataPreparo, setDataPreparo, totalBlocos, setTotalBlocos, pesoBlocoKg, setPesoBlocoKg, criando, erroCreate, onCriar, onCancelar }: NovoExpFormProps) {
+  useEffect(() => {
+    api.experimentos.codigoSugestao().then(r => setCodigo(r.codigo)).catch(() => {})
+  }, [])
+
+  async function handleCriar() {
+    if (!formulacaoId || !codigo || !dataPreparo) { setErroCreate('Preencha todos os campos.'); return }
+    setCriando(true); setErroCreate('')
+    try {
+      await onCriar({ formulacaoId, codigo, dataPreparo, totalBlocos, pesoBlocoKg })
+      onCancelar()
+    } catch (e: unknown) {
+      setErroCreate(toErrorMessage(e))
+    } finally {
+      setCriando(false)
+    }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {formulacoes.length === 0 ? (
@@ -822,13 +843,13 @@ function NovoExpForm({ formulacoes, formulacaoId, setFormulacaoId, codigo, setCo
           {erroCreate && <p style={{ fontSize: 12, color: 'var(--red)' }}>{erroCreate}</p>}
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
             <button className="btn" style={{ flex: 1 }} onClick={onCancelar}>Cancelar</button>
-            <button className="btn-primary" style={{ flex: 2 }} onClick={onCriar} disabled={criando}>{criando ? 'Criando...' : 'Criar experimento'}</button>
+            <button className="btn-primary" style={{ flex: 2 }} onClick={handleCriar} disabled={criando}>{criando ? 'Criando...' : 'Criar experimento'}</button>
           </div>
         </>
       )}
     </div>
   )
-}
+})
 
 // ─── Página principal ─────────────────────────────────────────────────────────
 export default function ExperimentosPage() {
@@ -841,123 +862,23 @@ export default function ExperimentosPage() {
 
 function Experimentos() {
   const { isAdmin } = useAuth()
-  const searchParams = useSearchParams()
-  const [experimentos, setExperimentos] = useState<Experimento[]>([])
-  const [formulacoes, setFormulacoes]   = useState<Formulacao[]>([])
-  const [selected, setSelected]         = useState<Experimento | null>(null)
-  const [monitoramentos, setMonitoramentos] = useState<Monitoramento[]>([])
-  const [colheitas, setColheitas]           = useState<Colheita[]>([])
-  const [modalAberto, setModalAberto]       = useState(false)
+  // Estados de UI dos modais secundários — não pertencem ao hook de dados
   const [modalAvancar, setModalAvancar]     = useState(false)
   const [modalDeletar, setModalDeletar]     = useState(false)
   const [modalEtiquetas, setModalEtiquetas] = useState(false)
-  const [abaDetalhe, setAbaDetalhe]         = useState<'monitor' | 'colheitas' | 'custos'>('monitor')
-  const [showNovoExp, setShowNovoExp]       = useState(false)
-  const [verTodosMonitor, setVerTodosMonitor] = useState(false)
-  const [formulacaoId, setFormulacaoId] = useState('')
-  const [codigo, setCodigo]             = useState('')
-  const [dataPreparo, setDataPreparo]   = useState('')
-  const [totalBlocos, setTotalBlocos]   = useState(40)
-  const [pesoBlocoKg, setPesoBlocoKg]   = useState(1.2)
-  const [criando, setCriando]           = useState(false)
-  const [erroCreate, setErroCreate]     = useState('')
 
-  async function carregarBase() {
-    try {
-      const [expsRes, formsRes, sugRes] = await Promise.allSettled([
-        api.experimentos.listar() as Promise<any>,
-        api.formulacoes.listar()  as Promise<any>,
-        api.experimentos.codigoSugestao() as Promise<any>,
-      ])
-      if (expsRes.status  === 'fulfilled') setExperimentos(expsRes.value)
-      if (formsRes.status === 'fulfilled') { setFormulacoes(formsRes.value); if (formsRes.value[0]) setFormulacaoId(formsRes.value[0].id) }
-      if (sugRes.status   === 'fulfilled') setCodigo(sugRes.value.codigo)
-    } catch (e) { console.error(e) }
-  }
-
-  useEffect(() => { carregarBase() }, [])
-
-  useEffect(() => {
-    const expCodigo = searchParams.get('exp')
-    if (!expCodigo || experimentos.length === 0) return
-    const found = experimentos.find(e => e.codigo === expCodigo)
-    if (found) abrirDetalhe(found)
-  }, [experimentos, searchParams])
-
-  async function abrirDetalhe(e: Experimento) {
-    setSelected(e); setAbaDetalhe('monitor'); setVerTodosMonitor(false)
-    const [m, c] = await Promise.all([
-      api.experimentos.monitoramentos.listar(e.id) as any,
-      api.experimentos.colheitas.listar(e.id)      as any,
-    ])
-    setMonitoramentos(m); setColheitas(c); setModalAberto(true)
-  }
-
-  function fecharModal() { setModalAberto(false); setSelected(null) }
-
-  async function criar() {
-    if (!formulacaoId || !codigo || !dataPreparo) { setErroCreate('Preencha todos os campos.'); return }
-    setCriando(true); setErroCreate('')
-    try {
-      await api.experimentos.criar({ formulacaoId, codigo, dataPreparo, totalBlocos, pesoBlocoKg })
-      const d: any = await api.experimentos.listar(); setExperimentos(d)
-      setDataPreparo(''); setShowNovoExp(false)
-      const s: any = await api.experimentos.codigoSugestao(); setCodigo(s.codigo)
-    } catch (e: any) { setErroCreate(e.message) }
-    finally { setCriando(false) }
-  }
-
-  async function avancar(proximoStatus?: string) {
-    if (!selected) return
-    setModalAvancar(false)
-    await api.experimentos.avancar(selected.id, proximoStatus ? { proximoStatus } : undefined)
-    const d: any = await api.experimentos.listar(); setExperimentos(d)
-    const upd = d.find((e: Experimento) => e.id === selected.id)
-    if (upd) await abrirDetalhe(upd)
-  }
-
-  async function salvarMon(data: any) {
-    if (!selected) return
-    await api.experimentos.monitoramentos.criar(selected.id, data)
-    const [m, exps]: any = await Promise.all([
-      api.experimentos.monitoramentos.listar(selected.id),
-      api.experimentos.listar(),
-    ])
-    setMonitoramentos(m); setExperimentos(exps)
-    const upd = exps.find((e: Experimento) => e.id === selected.id)
-    if (upd) setSelected(upd)
-  }
-
-  async function salvarColheita(data: any) {
-    if (!selected) return
-    await api.experimentos.colheitas.criar(selected.id, data)
-    const c: any = await api.experimentos.colheitas.listar(selected.id)
-    setColheitas(c)
-  }
-
-  async function salvarCustos(data: any) {
-    if (!selected) return
-    await api.experimentos.salvarCustos(selected.id, data)
-    await carregarBase()
-    const d: any = await api.experimentos.listar()
-    const upd = d.find((e: Experimento) => e.id === selected.id)
-    if (upd) await abrirDetalhe(upd)
-  }
-
-  async function deletar() {
-    if (!selected) return
-    await api.experimentos.deletar(selected.id)
-    const d: any = await api.experimentos.listar()
-    setExperimentos(d)
-    setModalDeletar(false)
-    fecharModal()
-  }
-
-  const ativos       = experimentos.filter(e => e.status !== 'CONCLUIDO').length
-  const totalColhido = experimentos.reduce((s, e) => s + (e.financeiro?.totalColhidoKg ?? 0), 0)
-  const receitaTotal = experimentos.reduce((s, e) => s + (e.financeiro?.receitaTotal ?? 0), 0)
-  const margens      = experimentos.filter(e => e.financeiro?.margemPct != null)
-  const margemMedia  = margens.length ? margens.reduce((s, e) => s + (e.financeiro!.margemPct!), 0) / margens.length : null
+  const {
+    experimentos, formulacoes, selected,
+    monitoramentos, colheitas,
+    modalAberto,
+    abaDetalhe, setAbaDetalhe,
+    showNovoExp, setShowNovoExp,
+    verTodosMonitor, setVerTodosMonitor,
+    erroPage, setErroPage,
+    ativos, totalColhido, receitaTotal, margemMedia,
+    abrirDetalhe, fecharModal,
+    criar, avancar, salvarMon, salvarColheita, salvarCustos, deletar,
+  } = useExperimentos()
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px' }}>
@@ -968,6 +889,13 @@ function Experimentos() {
         </div>
         <button className="btn-primary" onClick={() => setShowNovoExp(true)}>+ Novo lote</button>
       </div>
+
+      {erroPage && (
+        <div style={{ background: '#FCEBEB', border: '0.5px solid #F09595', borderRadius: 12, padding: '12px 16px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          <p style={{ fontSize: 13, color: '#791F1F', margin: 0 }}>{erroPage}</p>
+          <button onClick={() => setErroPage('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#A32D2D', flexShrink: 0 }}>✕</button>
+        </div>
+      )}
 
       {experimentos.length === 0 ? (
         <p style={{ textAlign: 'center', padding: '60px 0', color: '#bbb', fontSize: 14 }}>Nenhum experimento ainda. Crie o primeiro lote!</p>
@@ -996,58 +924,50 @@ function Experimentos() {
             <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 16 }}>Novo experimento</h2>
             <NovoExpForm
               formulacoes={formulacoes}
-              formulacaoId={formulacaoId} setFormulacaoId={setFormulacaoId}
-              codigo={codigo} setCodigo={setCodigo}
-              dataPreparo={dataPreparo} setDataPreparo={setDataPreparo}
-              totalBlocos={totalBlocos} setTotalBlocos={setTotalBlocos}
-              pesoBlocoKg={pesoBlocoKg} setPesoBlocoKg={setPesoBlocoKg}
-              criando={criando} erroCreate={erroCreate}
-              onCriar={criar} onCancelar={() => setShowNovoExp(false)}
+              onCriar={criar}
+              onCancelar={() => setShowNovoExp(false)}
             />
           </div>
         </div>
       )}
 
-      {/* Modal detalhe */}
+      {/* Modal detalhe — contexto escopado ao modal elimina o repasse de 13 props */}
       {modalAberto && selected && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 50, display: 'flex', alignItems: 'flex-end' }}
-          className="sm:items-center sm:p-4"
-          onMouseDown={(e) => { if (e.target === e.currentTarget) fecharModal() }}>
-          <div style={{ background: '#F7F6F3', borderRadius: '20px 20px 0 0', width: '100%', maxHeight: '92vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, padding: '20px 16px 32px' }}
-            className="sm:rounded-[20px] sm:max-w-[680px] sm:mx-auto sm:max-h-[90vh]" onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-              <div className="sm:hidden" style={{ width: 36, height: 4, borderRadius: 2, background: '#D0D0D0', flex: 1, margin: '0 auto' }} />
-              <button onClick={fecharModal} style={{ marginLeft: 'auto', background: '#F0F0F0', border: 'none', width: 32, height: 32, borderRadius: '50%', fontSize: 16, color: '#555', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
+        <DetalheCtx.Provider value={{
+          selected, monitoramentos, colheitas,
+          abaDetalhe, setAbaDetalhe,
+          verTodosMonitor, setVerTodosMonitor,
+          isAdmin,
+          onAvancar:       () => setModalAvancar(true),
+          onDeletar:       () => setModalDeletar(true),
+          onEtiquetas:     () => setModalEtiquetas(true),
+          onSalvarMon:     salvarMon,
+          onSalvarColheita: salvarColheita,
+          onSalvarCustos:  salvarCustos,
+        }}>
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 50, display: 'flex', alignItems: 'flex-end' }}
+            className="sm:items-center sm:p-4"
+            onMouseDown={(e) => { if (e.target === e.currentTarget) fecharModal() }}>
+            <div style={{ background: '#F7F6F3', borderRadius: '20px 20px 0 0', width: '100%', maxHeight: '92vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, padding: '20px 16px 32px' }}
+              className="sm:rounded-[20px] sm:max-w-[680px] sm:mx-auto sm:max-h-[90vh]" onClick={e => e.stopPropagation()}>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                <div className="sm:hidden" style={{ width: 36, height: 4, borderRadius: 2, background: '#D0D0D0', flex: 1, margin: '0 auto' }} />
+                <button onClick={fecharModal} style={{ marginLeft: 'auto', background: '#F0F0F0', border: 'none', width: 32, height: 32, borderRadius: '50%', fontSize: 16, color: '#555', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
+              </div>
+              <DetalheContent />
             </div>
-            <DetalheContent
-              selected={selected}
-              monitoramentos={monitoramentos}
-              colheitas={colheitas}
-              abaDetalhe={abaDetalhe}
-              setAbaDetalhe={setAbaDetalhe}
-              verTodosMonitor={verTodosMonitor}
-              setVerTodosMonitor={setVerTodosMonitor}
-              isAdmin={isAdmin}
-              onAvancar={() => setModalAvancar(true)}
-              onDeletar={() => setModalDeletar(true)}
-              onEtiquetas={() => setModalEtiquetas(true)}
-              podeAdmin={isAdmin}
-              onSalvarMon={salvarMon}
-              onSalvarColheita={salvarColheita}
-              onSalvarCustos={salvarCustos}
-            />
           </div>
-        </div>
+        </DetalheCtx.Provider>
       )}
 
       {/* Modal avançar fase */}
       {modalAvancar && selected && (
-        <ModalAvancarFase exp={selected} onConfirmar={avancar} onFechar={() => setModalAvancar(false)} />
+        <ModalAvancarFase exp={selected} onConfirmar={async (p) => { setModalAvancar(false); await avancar(p) }} onFechar={() => setModalAvancar(false)} />
       )}
 
       {/* Modal deletar */}
       {modalDeletar && selected && (
-        <ModalDeletarExperimento exp={selected} onConfirmar={deletar} onFechar={() => setModalDeletar(false)} />
+        <ModalDeletarExperimento exp={selected} onConfirmar={async () => { await deletar(); setModalDeletar(false) }} onFechar={() => setModalDeletar(false)} />
       )}
 
       {/* Modal etiquetas */}

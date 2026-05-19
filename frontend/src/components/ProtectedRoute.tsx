@@ -20,7 +20,7 @@ export default function ProtectedRoute({ children, adminOnly = false }: {
       if (!user) router.push('/login')
       else if (adminOnly && !isAdmin) router.push('/calculadora')
     }
-  }, [user, loading, isAdmin, adminOnly])
+  }, [user, loading, isAdmin, adminOnly, router])
 
   if (loading || !user) return (
     <div className="flex items-center justify-center min-h-[40vh]">

@@ -3,7 +3,27 @@
 // Uso não autorizado é expressamente proibido. Ver arquivo LICENSE.
 // Contato: alessandro.billy@organico4you.com.br
 
+import type {
+  Insumo, Especie, Formulacao, Experimento, Monitoramento, Colheita,
+  UsuarioAdmin, AuthResponse, CodigoSugestaoResponse,
+  MonitoramentoCreate, ColheitaCreate, CustosUpdate,
+} from './types'
+
 const BASE = '/api'
+
+/** Extrai a mensagem de um erro desconhecido capturado em catch. */
+export function toErrorMessage(e: unknown, fallback = 'Erro desconhecido'): string {
+  return e instanceof Error ? e.message : fallback
+}
+
+/** Lê o token CSRF do cookie XSRF-TOKEN (não-HttpOnly) definido pelo backend. */
+function getCsrfToken(): string {
+  if (typeof document === 'undefined') return ''
+  return document.cookie
+    .split('; ')
+    .find(row => row.startsWith('XSRF-TOKEN='))
+    ?.split('=')[1] ?? ''
+}
 
 // access token e refresh token estão em HttpOnly cookies — não há nada sensível no localStorage
 export function saveTokens(_token?: string) {
@@ -16,11 +36,11 @@ export function clearTokens() {
 }
 
 let refreshando = false
-let filaRefresh: Array<(token: string) => void> = []
+let filaRefresh: Array<() => void> = []
 
 async function renovarToken(): Promise<void> {
   if (refreshando) {
-    return new Promise(resolve => filaRefresh.push(resolve as any))
+    return new Promise<void>(resolve => filaRefresh.push(resolve))
   }
   refreshando = true
   try {
@@ -30,7 +50,7 @@ async function renovarToken(): Promise<void> {
       credentials: 'include', // envia refreshToken cookie e recebe novo accessToken cookie
     })
     if (!res.ok) throw new Error('Refresh falhou')
-    filaRefresh.forEach(cb => cb(''))
+    filaRefresh.forEach(cb => cb())
     filaRefresh = []
   } catch {
     clearTokens()
@@ -42,8 +62,15 @@ async function renovarToken(): Promise<void> {
 }
 
 async function req<T>(path: string, options?: RequestInit, retry = true): Promise<T> {
+  const method = (options?.method ?? 'GET').toUpperCase()
+  const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
+  const csrfToken = isMutation ? getCsrfToken() : ''
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
+    },
     credentials: 'include', // envia accessToken cookie automaticamente
     ...options,
   })
@@ -81,82 +108,82 @@ async function req<T>(path: string, options?: RequestInit, retry = true): Promis
 
 export const api = {
   auth: {
-    login:   (body: unknown) => req<any>('/auth/login',   { method: 'POST', body: JSON.stringify(body) }),
-    registro: (body: unknown) => req<any>('/auth/registro', { method: 'POST', body: JSON.stringify(body) }),
+    login:           (body: unknown)                        => req<AuthResponse>('/auth/login',       { method: 'POST', body: JSON.stringify(body) }),
+    registro:        (body: unknown)                        => req<AuthResponse>('/auth/registro',    { method: 'POST', body: JSON.stringify(body) }),
     logout: () => fetch(`${BASE}/auth/logout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
     }).then(() => clearTokens()),
-    me: () => req('/auth/me'),
-    esqueciSenha:   (email: string) => req('/auth/esqueci-senha', { method: 'POST', body: JSON.stringify({ email }) }),
-    redefinirSenha: (token: string, novaSenha: string) => req('/auth/redefinir-senha', { method: 'POST', body: JSON.stringify({ token, novaSenha }) }),
-    alterarSenha:   (senhaAtual: string, novaSenha: string) => req('/auth/alterar-senha', { method: 'PATCH', body: JSON.stringify({ senhaAtual, novaSenha }) }),
-    atualizarPerfil: (nome: string) => req('/auth/me', { method: 'PATCH', body: JSON.stringify({ nome }) }),
-    meusDados:      () => req('/auth/meus-dados'),
-    encerrarConta:  () => req('/admin/minha-conta', { method: 'DELETE' }),
+    me:              ()                                     => req<AuthResponse>('/auth/me'),
+    esqueciSenha:    (email: string)                        => req<void>('/auth/esqueci-senha',       { method: 'POST', body: JSON.stringify({ email }) }),
+    redefinirSenha:  (token: string, novaSenha: string)     => req<void>('/auth/redefinir-senha',     { method: 'POST', body: JSON.stringify({ token, novaSenha }) }),
+    alterarSenha:    (senhaAtual: string, novaSenha: string) => req<void>('/auth/alterar-senha',       { method: 'PATCH', body: JSON.stringify({ senhaAtual, novaSenha }) }),
+    atualizarPerfil: (nome: string)                         => req<AuthResponse>('/auth/me',          { method: 'PATCH', body: JSON.stringify({ nome }) }),
+    meusDados:       ()                                     => req<AuthResponse>('/auth/meus-dados'),
+    encerrarConta:   ()                                     => req<void>('/admin/minha-conta',        { method: 'DELETE' }),
   },
 
   admin: {
     usuarios: {
-      listar:    ()                           => req('/admin/usuarios'),
-      criar:     (body: unknown)              => req('/admin/usuarios', { method: 'POST', body: JSON.stringify(body) }),
-      atualizar: (id: string, body: unknown)  => req(`/admin/usuarios/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
-      deletar:   (id: string)                 => req(`/admin/usuarios/${id}`, { method: 'DELETE' }),
+      listar:    ()                           => req<UsuarioAdmin[]>('/admin/usuarios'),
+      criar:     (body: unknown)              => req<UsuarioAdmin>('/admin/usuarios',         { method: 'POST',  body: JSON.stringify(body) }),
+      atualizar: (id: string, body: unknown)  => req<UsuarioAdmin>(`/admin/usuarios/${id}`,   { method: 'PATCH', body: JSON.stringify(body) }),
+      deletar:   (id: string)                 => req<void>(`/admin/usuarios/${id}`,           { method: 'DELETE' }),
     },
     tenants: {
-      listar:         ()                                    => req('/admin/tenants'),
-      resumo:         ()                                    => req('/admin/tenants/resumo'),
-      buscar:         (id: number)                          => req(`/admin/tenants/${id}`),
-      atualizar:      (id: number, body: unknown)           => req(`/admin/tenants/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
-      criar:          (body: unknown)                       => req('/admin/tenants', { method: 'POST', body: JSON.stringify(body) }),
-      estenderTrial:  (id: number, dias: number)            => req(`/admin/tenants/${id}/estender-trial`, { method: 'POST', body: JSON.stringify({ dias }) }),
-      deletar:        (id: number)                          => req(`/admin/tenants/${id}`, { method: 'DELETE' }),
-      listarUsuarios: (id: number)                          => req(`/admin/tenants/${id}/usuarios`),
-      removerUsuario: (tenantId: number, usuarioId: string) => req(`/admin/tenants/${tenantId}/usuarios/${usuarioId}`, { method: 'DELETE' }),
+      listar:         ()                                    => req<unknown[]>('/admin/tenants'),
+      resumo:         ()                                    => req<unknown>('/admin/tenants/resumo'),
+      buscar:         (id: number)                          => req<unknown>(`/admin/tenants/${id}`),
+      atualizar:      (id: number, body: unknown)           => req<unknown>(`/admin/tenants/${id}`,                    { method: 'PATCH', body: JSON.stringify(body) }),
+      criar:          (body: unknown)                       => req<unknown>('/admin/tenants',                           { method: 'POST',  body: JSON.stringify(body) }),
+      estenderTrial:  (id: number, dias: number)            => req<void>(`/admin/tenants/${id}/estender-trial`,         { method: 'POST',  body: JSON.stringify({ dias }) }),
+      deletar:        (id: number)                          => req<void>(`/admin/tenants/${id}`,                        { method: 'DELETE' }),
+      listarUsuarios: (id: number)                          => req<UsuarioAdmin[]>(`/admin/tenants/${id}/usuarios`),
+      removerUsuario: (tenantId: number, usuarioId: string) => req<void>(`/admin/tenants/${tenantId}/usuarios/${usuarioId}`, { method: 'DELETE' }),
     },
   },
 
   insumos: {
-    listar:     ()                           => req('/insumos'),
-    categorias: ()                           => req('/insumos/categorias'),
-    criar:      (body: unknown)              => req('/insumos', { method: 'POST', body: JSON.stringify(body) }),
-    atualizar:  (id: string, body: unknown)  => req(`/insumos/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-    deletar:    (id: string)                 => req(`/insumos/${id}`, { method: 'DELETE' }),
+    listar:     ()                           => req<Insumo[]>('/insumos'),
+    categorias: ()                           => req<string[]>('/insumos/categorias'),
+    criar:      (body: unknown)              => req<Insumo>('/insumos',       { method: 'POST', body: JSON.stringify(body) }),
+    atualizar:  (id: string, body: unknown)  => req<Insumo>(`/insumos/${id}`, { method: 'PUT',  body: JSON.stringify(body) }),
+    deletar:    (id: string)                 => req<void>(`/insumos/${id}`,   { method: 'DELETE' }),
   },
   especies: {
-    listar: () => req('/especies'),
+    listar: () => req<Especie[]>('/especies'),
   },
   formulacoes: {
-    listar:          ()                            => req('/formulacoes'),
-    buscar:          (id: string)                  => req(`/formulacoes/${id}`),
-    criar:           (body: unknown)               => req('/formulacoes', { method: 'POST', body: JSON.stringify(body) }),
-    atualizarStatus: (id: string, status: string)  => req(`/formulacoes/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
-    deletar:         (id: string)                  => req(`/formulacoes/${id}`, { method: 'DELETE' }),
-    emUso:           (id: string)                  => req(`/formulacoes/${id}/em-uso`),
-    atualizar:       (id: string, body: unknown)   => req(`/formulacoes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    listar:          ()                                    => req<Formulacao[]>('/formulacoes'),
+    buscar:          (id: string)                          => req<Formulacao>(`/formulacoes/${id}`),
+    criar:           (body: unknown)                       => req<Formulacao>('/formulacoes',                  { method: 'POST',  body: JSON.stringify(body) }),
+    atualizarStatus: (id: string, status: Formulacao['status']) => req<Formulacao>(`/formulacoes/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+    deletar:         (id: string)                          => req<void>(`/formulacoes/${id}`,                  { method: 'DELETE' }),
+    emUso:           (id: string)                          => req<boolean>(`/formulacoes/${id}/em-uso`),
+    atualizar:       (id: string, body: unknown)           => req<Formulacao>(`/formulacoes/${id}`,            { method: 'PUT',   body: JSON.stringify(body) }),
   },
   experimentos: {
-    listar:         ()               => req('/experimentos'),
-    buscar:         (id: string)     => req(`/experimentos/${id}`),
-    codigoSugestao: ()               => req('/experimentos/codigo-sugestao'),
-    criar:          (body: unknown)  => req('/experimentos', { method: 'POST', body: JSON.stringify(body) }),
+    listar:         ()               => req<Experimento[]>('/experimentos'),
+    buscar:         (id: string)     => req<Experimento>(`/experimentos/${id}`),
+    codigoSugestao: ()               => req<CodigoSugestaoResponse>('/experimentos/codigo-sugestao'),
+    criar:          (body: unknown)  => req<Experimento>('/experimentos',                { method: 'POST',  body: JSON.stringify(body) }),
     avancar: (id: string, body?: { proximoStatus: string }) =>
-      req(`/experimentos/${id}/avancar`, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
-    deletar:      (id: string) => req(`/experimentos/${id}`, { method: 'DELETE' }),
-    resumoDelete: (id: string) => req(`/experimentos/${id}/resumo-delete`),
+      req<Experimento>(`/experimentos/${id}/avancar`,                                   { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
+    deletar:      (id: string) => req<void>(`/experimentos/${id}`,                      { method: 'DELETE' }),
+    resumoDelete: (id: string) => req<unknown>(`/experimentos/${id}/resumo-delete`),
     monitoramentos: {
-      listar: (id: string)                => req(`/experimentos/${id}/monitoramentos`),
-      criar:  (id: string, body: unknown) => req(`/experimentos/${id}/monitoramentos`, { method: 'POST', body: JSON.stringify(body) }),
+      listar: (id: string)                          => req<Monitoramento[]>(`/experimentos/${id}/monitoramentos`),
+      criar:  (id: string, body: MonitoramentoCreate) => req<Monitoramento>(`/experimentos/${id}/monitoramentos`, { method: 'POST', body: JSON.stringify(body) }),
     },
-    salvarCustos: (id: string, body: unknown) =>
-      req(`/experimentos/${id}/custos`, { method: 'PUT', body: JSON.stringify(body) }),
+    salvarCustos: (id: string, body: CustosUpdate) =>
+      req<Experimento>(`/experimentos/${id}/custos`,                                    { method: 'PUT', body: JSON.stringify(body) }),
     colheitas: {
-      listar: (id: string)                => req(`/experimentos/${id}/colheitas`),
-      criar:  (id: string, body: unknown) => req(`/experimentos/${id}/colheitas`, { method: 'POST', body: JSON.stringify(body) }),
+      listar: (id: string)                      => req<Colheita[]>(`/experimentos/${id}/colheitas`),
+      criar:  (id: string, body: ColheitaCreate) => req<Colheita>(`/experimentos/${id}/colheitas`, { method: 'POST', body: JSON.stringify(body) }),
     },
   },
   relatorio: {
-    gerar: () => req('/relatorio'),
+    gerar: () => req<unknown>('/relatorio'),
   },
 }

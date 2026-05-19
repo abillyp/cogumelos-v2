@@ -8,7 +8,6 @@ import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
-import { AuthUser } from '@/lib/types'
 
 function CallbackHandler() {
   const router    = useRouter()
@@ -32,17 +31,20 @@ function CallbackHandler() {
 
     // access token está no HttpOnly cookie setado pelo backend — basta chamar /me
     api.auth.me()
-      .then((data: any) => {
+      .then((data) => {
         login('', {
           id: data.id, nome: data.nome, email: data.email, role: data.role,
           loginType: loginType as 'GOOGLE' | 'EMAIL',
-        } as AuthUser)
+        })
         router.replace('/')
       })
       .catch(() => {
         setErro('Erro ao carregar dados do usuário. Tente novamente.')
         setTimeout(() => router.replace('/login'), 3000)
       })
+  // Intencional: executa uma única vez no mount. params/router/login retornam
+  // novas referências a cada render (Next.js) e causariam loop se incluídos.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (

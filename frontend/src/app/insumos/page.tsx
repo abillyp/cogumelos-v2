@@ -4,11 +4,9 @@
 // Contato: alessandro.billy@organico4you.com.br
 
 'use client'
-import { useEffect, useState } from 'react'
-import { api } from '@/lib/api'
-import { Insumo } from '@/lib/types'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useAuth } from '@/hooks/useAuth'
+import { useInsumos } from '@/hooks/useInsumos'
 
 export default function InsumosPage() {
   return <ProtectedRoute><Insumos /></ProtectedRoute>
@@ -16,59 +14,15 @@ export default function InsumosPage() {
 
 function Insumos() {
   const { isAdmin } = useAuth()
-  const [insumos, setInsumos]       = useState<Insumo[]>([])
-  const [categorias, setCategorias] = useState<string[]>([])
-  const [filtro, setFiltro]         = useState('Todos')
-  const [modal, setModal]           = useState(false)
-  const [editando, setEditando]     = useState<Insumo|null>(null)
-  const [novaCategoria, setNovaCategoria] = useState(false)
-  const [form, setForm] = useState({ nome:'', moPct:'', carbonoPct:'', nitrogenioPct:'', ph:'', categoria:'' })
-  const [novaCtg, setNovaCtg]   = useState('')
-  const [salvando, setSalvando] = useState(false)
-  const [erro, setErro]         = useState('')
-  const [busca, setBusca]       = useState('')
-
-  async function carregar() {
-    const [ins, cats]:any = await Promise.all([api.insumos.listar(), api.insumos.categorias()])
-    setInsumos(ins); setCategorias(cats)
-  }
-
-  useEffect(() => { carregar() }, [])
-
-  function abrirNovo() {
-    setForm({ nome:'', moPct:'', carbonoPct:'', nitrogenioPct:'', ph:'', categoria:categorias[0]??'' })
-    setEditando(null); setNovaCategoria(false); setNovaCtg(''); setErro(''); setModal(true)
-  }
-
-  function abrirEditar(i: Insumo) {
-    setForm({ nome:i.nome, moPct:String(i.moPct), carbonoPct:String(i.carbonoPct),
-      nitrogenioPct:String(i.nitrogenioPct), ph:i.ph?String(i.ph):'', categoria:i.categoria??'' })
-    setEditando(i); setNovaCategoria(false); setNovaCtg(''); setErro(''); setModal(true)
-  }
-
-  async function salvar() {
-    setSalvando(true); setErro('')
-    try {
-      const categoriaFinal = novaCategoria ? novaCtg : form.categoria
-      const body = {
-        nome: form.nome,
-        moPct: parseFloat(form.moPct), carbonoPct: parseFloat(form.carbonoPct),
-        nitrogenioPct: parseFloat(form.nitrogenioPct),
-        ph: form.ph ? parseFloat(form.ph) : null,
-        categoria: categoriaFinal || null,
-      }
-      if (editando) await api.insumos.atualizar(editando.id, body)
-      else          await api.insumos.criar(body)
-      await carregar(); setModal(false); setEditando(null)
-    } catch(e:any) { setErro(e.message) }
-    finally { setSalvando(false) }
-  }
-
-  async function deletar(id: string) {
-    if (!confirm('Remover este insumo?')) return
-    try { await api.insumos.deletar(id); setInsumos(ins => ins.filter(i => i.id !== id)) }
-    catch(e:any) { alert(e.message) }
-  }
+  const {
+    insumos, categorias, todasCats, filtrados,
+    filtro, setFiltro, busca, setBusca,
+    modal, setModal, editando,
+    novaCategoria, setNovaCategoria, form, setForm, novaCtg, setNovaCtg,
+    salvando, erro, setErro,
+    confirmandoDelete, setConfirmandoDelete, erroDeletar, setErroDeletar,
+    abrirNovo, abrirEditar, salvar, deletar,
+  } = useInsumos()
 
   const CAT_COLORS: Record<string,{bg:string;color:string}> = {
     'Gramínea':  { bg:'#E3F0FF', color:'#0C447C' },
@@ -82,11 +36,6 @@ function Insumos() {
     return CAT_COLORS[cat] ?? { bg:'#F1EFE8', color:'#555' }
   }
 
-  const todasCats = ['Todos', ...categorias]
-  const filtrados = insumos
-    .filter(i => filtro === 'Todos' || i.categoria === filtro)
-    .filter(i => !busca || i.nome.toLowerCase().includes(busca.toLowerCase()))
-
   return (
     <div style={{ maxWidth:1100, margin:'0 auto', padding:'24px 16px' }}>
 
@@ -98,6 +47,13 @@ function Insumos() {
         </div>
         {isAdmin && <button className="btn-primary" onClick={abrirNovo}>+ Insumo</button>}
       </div>
+
+      {erroDeletar && (
+        <div style={{ background:'#FCEBEB', border:'0.5px solid #F09595', borderRadius:10, padding:'10px 14px', marginBottom:12, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <p style={{ fontSize:13, color:'#791F1F', margin:0 }}>{erroDeletar}</p>
+          <button onClick={() => setErroDeletar('')} style={{ background:'none', border:'none', cursor:'pointer', fontSize:16, color:'#A32D2D' }}>✕</button>
+        </div>
+      )}
 
       {/* Busca mobile */}
       <input
@@ -170,8 +126,15 @@ function Insumos() {
               {isAdmin && (
                 <div style={{ display:'flex', gap:8, marginTop:10 }}>
                   <button className="btn" style={{ flex:1, fontSize:12 }} onClick={() => abrirEditar(i)}>Editar</button>
-                  <button style={{ flex:1, fontSize:12, padding:'8px', borderRadius:10, background:'var(--red-l)', color:'var(--red)', border:'none', cursor:'pointer', fontWeight:600 }}
-                    onClick={() => deletar(i.id)}>Remover</button>
+                  {confirmandoDelete === i.id ? (
+                    <span style={{ display:'flex', gap:4, alignItems:'center', flex:1 }}>
+                      <button onClick={() => deletar(i.id)} style={{ flex:1, fontSize:11, padding:'6px 4px', borderRadius:8, background:'var(--red)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600 }}>Confirmar</button>
+                      <button onClick={() => setConfirmandoDelete(null)} style={{ flex:1, fontSize:11, padding:'6px 4px', borderRadius:8, background:'transparent', color:'#888', border:'0.5px solid #ddd', cursor:'pointer' }}>Cancelar</button>
+                    </span>
+                  ) : (
+                    <button style={{ flex:1, fontSize:12, padding:'8px', borderRadius:10, background:'var(--red-l)', color:'var(--red)', border:'none', cursor:'pointer', fontWeight:600 }}
+                      onClick={() => setConfirmandoDelete(i.id)}>Remover</button>
+                  )}
                 </div>
               )}
             </div>
@@ -218,7 +181,14 @@ function Insumos() {
                     {isAdmin && (
                       <td style={{ textAlign:'right', paddingRight:18, whiteSpace:'nowrap' }}>
                         <button onClick={() => abrirEditar(i)} style={{ fontSize:12, color:'#aaa', background:'none', border:'none', cursor:'pointer', marginRight:8 }}>editar</button>
-                        <button onClick={() => deletar(i.id)} style={{ fontSize:12, color:'var(--red)', background:'none', border:'none', cursor:'pointer' }}>remover</button>
+                        {confirmandoDelete === i.id ? (
+                          <>
+                            <button onClick={() => deletar(i.id)} style={{ fontSize:12, color:'#fff', background:'var(--red)', border:'none', borderRadius:6, padding:'2px 8px', cursor:'pointer', marginRight:4 }}>confirmar</button>
+                            <button onClick={() => setConfirmandoDelete(null)} style={{ fontSize:12, color:'#888', background:'none', border:'none', cursor:'pointer' }}>cancelar</button>
+                          </>
+                        ) : (
+                          <button onClick={() => setConfirmandoDelete(i.id)} style={{ fontSize:12, color:'var(--red)', background:'none', border:'none', cursor:'pointer' }}>remover</button>
+                        )}
                       </td>
                     )}
                   </tr>

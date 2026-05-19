@@ -4,79 +4,34 @@
 // Contato: alessandro.billy@organico4you.com.br
 
 'use client'
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/hooks/useAuth'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import { api } from '@/lib/api'
+import { usePerfil, useAlterarSenha } from '@/hooks/usePerfil'
 
 export default function PerfilPage() {
   return <ProtectedRoute><Perfil /></ProtectedRoute>
 }
 
 function Perfil() {
-  const { user, logout, isAdmin, login } = useAuth()
   const router = useRouter()
-  const [nomeEditando, setNomeEditando] = useState(false)
-  const [novoNome, setNovoNome]         = useState('')
-  const [nomeErro, setNomeErro]         = useState('')
-  const [nomeSucesso, setNomeSucesso]   = useState(false)
-  const [nomeLoading, setNomeLoading]   = useState(false)
-  const [exportando, setExportando]     = useState(false)
-  const [confirmandoEncerrar, setConfirmandoEncerrar] = useState(false)
-  const [encerrando, setEncerrando]     = useState(false)
-  const [encerrarErro, setEncerrarErro] = useState('')
+  const {
+    user, logout, isAdmin,
+    nomeEditando, setNomeEditando, abrirNomeEdit,
+    novoNome, setNovoNome,
+    nomeErro, setNomeErro,
+    nomeSucesso,
+    nomeLoading,
+    exportando,
+    confirmandoEncerrar, setConfirmandoEncerrar,
+    encerrando,
+    encerrarErro, setEncerrarErro,
+    salvarNome, exportarDados, encerrarConta,
+  } = usePerfil()
 
   if (!user) return null
 
   const inicial = user.nome.charAt(0).toUpperCase()
   const isOAuth2 = user.loginType === 'GOOGLE'
-
-  async function salvarNome() {
-    setNomeErro('')
-    if (!novoNome.trim()) { setNomeErro('Nome não pode ser vazio.'); return }
-    setNomeLoading(true)
-    try {
-      const data: any = await api.auth.atualizarPerfil(novoNome.trim())
-      login('', { ...user!, nome: data.nome })
-      setNomeSucesso(true)
-      setTimeout(() => { setNomeSucesso(false); setNomeEditando(false) }, 1500)
-    } catch (e: any) {
-      setNomeErro(e.message || 'Erro ao salvar.')
-    } finally {
-      setNomeLoading(false)
-    }
-  }
-
-  async function exportarDados() {
-    setExportando(true)
-    try {
-      const data = await api.auth.meusDados()
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-      const url  = URL.createObjectURL(blob)
-      const a    = document.createElement('a')
-      a.href     = url
-      a.download = `meus-dados-cogumelos-${new Date().toISOString().slice(0, 10)}.json`
-      a.click()
-      URL.revokeObjectURL(url)
-    } catch (e: any) {
-      alert(e.message || 'Erro ao exportar dados.')
-    } finally {
-      setExportando(false)
-    }
-  }
-
-  async function encerrarConta() {
-    setEncerrarErro('')
-    setEncerrando(true)
-    try {
-      await api.auth.encerrarConta()
-      logout()
-    } catch (e: any) {
-      setEncerrarErro(e.message || 'Erro ao encerrar conta.')
-      setEncerrando(false)
-    }
-  }
 
   return (
     <div style={{ padding: '24px 16px', maxWidth: 480, margin: '0 auto' }}>
@@ -119,7 +74,7 @@ function Perfil() {
                 value={novoNome}
                 onChange={e => setNovoNome(e.target.value)}
                 style={{ padding: '6px 10px', borderRadius: 8, border: '1.5px solid #E8E8E8', fontSize: 14, width: 180 }}
-                autoFocus
+                autoFocus maxLength={100}
               />
               {nomeErro && <span style={{ fontSize: 12, color: 'var(--red)' }}>{nomeErro}</span>}
               {nomeSucesso && <span style={{ fontSize: 12, color: 'var(--green)' }}>Salvo!</span>}
@@ -137,7 +92,7 @@ function Perfil() {
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>{user.nome}</span>
-              <button onClick={() => { setNovoNome(user.nome); setNomeEditando(true) }}
+              <button onClick={() => abrirNomeEdit(user.nome)}
                 style={{ fontSize: 12, color: 'var(--purple)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
                 Editar
               </button>
@@ -274,30 +229,14 @@ function Perfil() {
 }
 
 function AlterarSenha() {
-  const [aberto, setAberto] = useState(false)
-  const [senhaAtual, setSenhaAtual] = useState('')
-  const [novaSenha, setNovaSenha] = useState('')
-  const [confirmar, setConfirmar] = useState('')
-  const [erro, setErro] = useState('')
-  const [sucesso, setSucesso] = useState(false)
-  const [loading, setLoading] = useState(false)
-
-  async function handleSubmit() {
-    setErro('')
-    if (novaSenha !== confirmar) { setErro('As senhas não coincidem.'); return }
-    if (novaSenha.length < 6) { setErro('Mínimo 6 caracteres.'); return }
-    setLoading(true)
-    try {
-      await api.auth.alterarSenha(senhaAtual, novaSenha)
-      setSucesso(true)
-      setSenhaAtual(''); setNovaSenha(''); setConfirmar('')
-      setTimeout(() => { setSucesso(false); setAberto(false) }, 2000)
-    } catch (e: any) {
-      setErro(e.message || 'Erro ao alterar senha.')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const {
+    aberto, setAberto,
+    senhaAtual, setSenhaAtual,
+    novaSenha, setNovaSenha,
+    confirmar, setConfirmar,
+    erro, sucesso, loading,
+    handleSubmit,
+  } = useAlterarSenha()
 
   return (
     <div className="card" style={{ marginBottom: 16 }}>
@@ -325,6 +264,7 @@ function AlterarSenha() {
                 value={value}
                 onChange={e => set(e.target.value)}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #E8E8E8', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                maxLength={128}
               />
             </div>
           ))}

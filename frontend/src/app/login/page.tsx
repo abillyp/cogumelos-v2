@@ -7,9 +7,8 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useRouter } from 'next/navigation'
-import { api } from '@/lib/api'
+import { api, toErrorMessage } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
-import { AuthUser } from '@/lib/types'
 
 function LoginContent() {
   const router          = useRouter()
@@ -24,7 +23,7 @@ function LoginContent() {
   const [loading, setLoading]   = useState(false)
   const [aceitouTermos, setAceitouTermos] = useState(false)
 
-  useEffect(() => { if (user) router.push('/') }, [user])
+  useEffect(() => { if (user) router.push('/') }, [user, router])
 
   useEffect(() => {
     const erroParam = searchParams.get('erro')
@@ -37,28 +36,35 @@ function LoginContent() {
     if (erroParam && msgs[erroParam]) setErro(msgs[erroParam])
   }, [searchParams])
 
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setErro('')
-    if (tab === 'registro' && !aceitouTermos) {
-      setErro('Você deve aceitar os termos de uso e a política de privacidade.')
+    if (!EMAIL_RE.test(email)) {
+      setErro('Email inválido.')
       return
+    }
+    if (tab === 'registro') {
+      if (!aceitouTermos) {
+        setErro('Você deve aceitar os termos de uso e a política de privacidade.')
+        return
+      }
+      if (senha.length < 8) {
+        setErro('A senha deve ter pelo menos 8 caracteres.')
+        return
+      }
     }
     setLoading(true)
   try {
-    console.log('=== chamando login', { email, senha: '***' })
-    const data: any = tab === 'login'
+    const data = tab === 'login'
       ? await api.auth.login({ email, senha })
       : await api.auth.registro({ nome, nomeProdutor, email, senha, aceitouTermos })
-    console.log('=== response', data)
 
-      login(data.token, {
-        id: data.id, nome: data.nome, email: data.email, role: data.role,
-        loginType: data.loginType,
-      } as AuthUser)
+      login(data.token, { id: data.id, nome: data.nome, email: data.email, role: data.role, loginType: data.loginType })
       router.push('/')
-    } catch (err: any) {
-      setErro(err.message)
+    } catch (err: unknown) {
+      setErro(toErrorMessage(err))
     } finally { setLoading(false) }
   }
 
@@ -125,12 +131,12 @@ function LoginContent() {
                 <div>
                   <label className="label">Nome</label>
                   <input className="input" value={nome} onChange={e => setNome(e.target.value)}
-                    placeholder="Seu nome completo" required />
+                    placeholder="Seu nome completo" required maxLength={100} />
                 </div>
                 <div>
                   <label className="label">Nome do produtor / empresa</label>
                   <input className="input" value={nomeProdutor} onChange={e => setNomeProdutor(e.target.value)}
-                    placeholder="Ex: Cogumelos São Paulo" required />
+                    placeholder="Ex: Cogumelos São Paulo" required maxLength={100} />
                 </div>
               </>
             )}
@@ -138,14 +144,14 @@ function LoginContent() {
             <div>
               <label className="label">Email</label>
               <input type="email" className="input" value={email} onChange={e => setEmail(e.target.value)}
-                placeholder="seu@email.com" required autoComplete="email" />
+                placeholder="seu@email.com" required autoComplete="email" maxLength={100} />
             </div>
 
             <div>
               <label className="label">Senha</label>
               <input type="password" className="input" value={senha} onChange={e => setSenha(e.target.value)}
-                placeholder={tab === 'registro' ? 'Mínimo 6 caracteres' : '••••••••'} required
-                minLength={tab === 'registro' ? 6 : undefined}
+                placeholder={tab === 'registro' ? 'Mínimo 8 caracteres' : '••••••••'} required
+                minLength={tab === 'registro' ? 8 : undefined} maxLength={128}
                 autoComplete={tab === 'login' ? 'current-password' : 'new-password'} />
             </div>
 
