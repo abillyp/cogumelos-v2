@@ -13,6 +13,7 @@ RUN addgroup -S cogumelos && adduser -S cogumelos -G cogumelos
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
+COPY --from=build /app/node_modules/qrcode-svg ./node_modules/qrcode-svg
 USER cogumelos
 EXPOSE 3000
 CMD ["node", "server.js"]
