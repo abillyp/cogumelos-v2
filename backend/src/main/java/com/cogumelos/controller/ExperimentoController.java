@@ -121,6 +121,15 @@ public class ExperimentoController {
         return ResponseEntity.status(201).body(service.adicionarMonitoramento(id, req));
     }
 
+    @Operation(summary = "Deletar monitoramento",
+            description = "Apaga um registro de temperatura/umidade para o experimento.")
+    @DeleteMapping("/{experimentoId}/monitoramentos/{monitoramentoId}")
+    public ResponseEntity<MonitoramentoResponse> deleteMonitoramento(
+            @Parameter(description = "ID do experimento") @PathVariable String experimentoId, @PathVariable String monitoramentoId){
+        service.deletarMonitoramento(experimentoId, monitoramentoId);
+        return ResponseEntity.noContent().build();
+    }
+
     // ── Colheitas ─────────────────────────────────────────────────────────────
 
     @Operation(summary = "Listar colheitas do experimento")

@@ -380,4 +380,19 @@ public class ExperimentoService {
 
         return new ExperimentoAssociacaoResponse(monitoramentos, colheitas, custos);
     }
+
+    @Transactional
+    public void deletarMonitoramento(String experimentoId, String monitoramentoId) {
+        Experimento experimento = repo.findByIdAndTenantId(experimentoId, TenantContext.getTenantId()
+        ).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Experimento não encontrado"));
+
+        LoteMonitoramento loteMonitoramento = monitoramentoRepo.findById(monitoramentoId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Monitoramento não encontrado"));
+
+        if (!loteMonitoramento.getExperimento().getId().equals(experimento.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Monitoramento não pertence a este experimento");
+        }
+
+        monitoramentoRepo.deleteById(monitoramentoId);
+    }
 }
