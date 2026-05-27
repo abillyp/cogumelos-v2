@@ -488,7 +488,12 @@ function DetalheContent({
   const perdidos = selected.blocosPerdidos ?? 0
   const ativos = selected.totalBlocos - perdidos
 
-  const [sala, setSala]               = useState('FRUTIFICACAO')
+  const [sala, setSala] = useState(() => {
+    const fase = selected.status
+    if (fase === 'AMADURECIMENTO') return 'AMADURECIMENTO'
+    if (fase === 'DESCANSO') return 'DESCANSO'
+    return 'FRUTIFICACAO'
+  })
   const [dataM, setDataM]             = useState(new Date().toISOString().slice(0, 10))
   const [temp, setTemp]               = useState('')
   const [umid, setUmid]               = useState('')
