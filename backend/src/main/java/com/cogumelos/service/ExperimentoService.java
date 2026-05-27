@@ -198,6 +198,7 @@ public class ExperimentoService {
     public MonitoramentoResponse adicionarMonitoramento(String expId, MonitoramentoRequest req) {
         Experimento e = buscarSeguro(expId);
 
+
         LoteMonitoramento m = new LoteMonitoramento();
         m.setId(UUID.randomUUID().toString());
         m.setTenantId(tenantId());    // ✅ injeta tenant
@@ -207,9 +208,9 @@ public class ExperimentoService {
         m.setTemperatura(req.temperatura());
         m.setUmidade(req.umidade());
         m.setObservacao(req.observacao());
-        m.setBlocosPerdidos(req.blocosPerdidos());
+        m.setBlocosPerdidos(req.blocosPerdidosOrZero());
 
-        e.setTotalBlocosPerdidos(e.getTotalBlocosPerdidos()+ req.blocosPerdidos());
+        e.setTotalBlocosPerdidos(e.getTotalBlocosPerdidos()+ req.blocosPerdidosOrZero());
         repo.save(e);
 
 

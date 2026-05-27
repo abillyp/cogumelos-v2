@@ -12,5 +12,5 @@
 package com.cogumelos.enums;
 
 public enum Sala {
-    AMADURECIMENTO, FRUTIFICACAO
+    AMADURECIMENTO, FRUTIFICACAO, DESCANSO
 }

@@ -17,4 +17,9 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 
 public record MonitoramentoRequest(@NotBlank String sala, @NotNull LocalDate data,
-                                   Double temperatura, Double umidade, String observacao, Integer blocosPerdidos) {}
+                                   Double temperatura, Double umidade, String observacao, Integer blocosPerdidos) {
+    public int blocosPerdidosOrZero() {
+        return blocosPerdidos != null ? blocosPerdidos : 0;
+    }
+
+}
