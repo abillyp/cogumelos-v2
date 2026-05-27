@@ -392,6 +392,9 @@ public class ExperimentoService {
         if (!loteMonitoramento.getExperimento().getId().equals(experimento.getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Monitoramento não pertence a este experimento");
         }
+        experimento.setTotalBlocosPerdidos(experimento.getTotalBlocosPerdidos()- loteMonitoramento.getBlocosPerdidos());
+        repo.save(experimento);
+
 
         monitoramentoRepo.deleteById(monitoramentoId);
     }

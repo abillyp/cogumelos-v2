@@ -979,8 +979,14 @@ function Experimentos() {
   async function deletarMon(monitoramentoId: string) {
     if (!selected) return
     await api.experimentos.monitoramentos.deletar(selected.id, monitoramentoId)
-    const m: any = await api.experimentos.monitoramentos.listar(selected.id)
+    const [m, exps]: any = await Promise.all([
+      api.experimentos.monitoramentos.listar(selected.id),
+      api.experimentos.listar(),
+    ])
     setMonitoramentos(m)
+    setExperimentos(exps)
+    const upd = exps.find((e: Experimento) => e.id === selected.id)
+    if (upd) setSelected(upd)
   }
 
   async function salvarCustos(data: any) {
