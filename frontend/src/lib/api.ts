@@ -175,6 +175,7 @@ export const api = {
     monitoramentos: {
       listar: (id: string)                            => req<Monitoramento[]>(`/experimentos/${id}/monitoramentos`),
       criar:  (id: string, body: MonitoramentoCreate) => req<Monitoramento>(`/experimentos/${id}/monitoramentos`, { method: 'POST', body: JSON.stringify(body) }),
+      deletar: (experimentoId: string, monitoramentoId: string) => req<void>(`/experimentos/${experimentoId}/monitoramentos/${monitoramentoId}`, { method: 'DELETE' }),
     },
     salvarCustos: (id: string, body: CustosUpdate) =>
       req<Experimento>(`/experimentos/${id}/custos`,                                    { method: 'PUT', body: JSON.stringify(body) }),

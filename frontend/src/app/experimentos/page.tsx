@@ -474,6 +474,7 @@ interface DetalheProps {
   onSalvarMon: (data: any) => Promise<void>
   onSalvarColheita: (data: any) => Promise<void>
   onSalvarCustos: (data: any) => Promise<void>
+  onDeletarMon: (monitoramentoId: string) => Promise<void>
 }
 
 function DetalheContent({
@@ -481,7 +482,7 @@ function DetalheContent({
   abaDetalhe, setAbaDetalhe,
   verTodosMonitor, setVerTodosMonitor,
   isAdmin, onAvancar, onDeletar, onEtiquetas, podeAdmin,
-  onSalvarMon, onSalvarColheita, onSalvarCustos,
+  onSalvarMon, onSalvarColheita, onSalvarCustos, onDeletarMon,
 }: DetalheProps) {
   const emFrut = selected.status === 'FRUTIFICACAO'
   const emDesc = selected.status === 'DESCANSO'
@@ -503,6 +504,7 @@ function DetalheContent({
   const [obs, setObs]                 = useState('')
   const [blocosPerdidosInput, setBlocosPerdidosInput] = useState('')
   const [erroMon, setErroMon]         = useState('')
+  const [removendoMon, setRemovendoMon] = useState<string | null>(null)
   const [dataC, setDataC]             = useState(new Date().toISOString().slice(0, 10))
   const [pesoTotal, setPesoTotal]     = useState('')
   const [notasC, setNotasC]           = useState('')
@@ -534,6 +536,14 @@ function DetalheContent({
       })
       setObs(''); setTemp(''); setUmid(''); setBlocosPerdidosInput('')
     } catch (e: any) { setErroMon(e.message) }
+  }
+
+  async function deletarMon(monitoramentoId: string) {
+    setRemovendoMon(monitoramentoId)
+    try {
+      await onDeletarMon(monitoramentoId)
+    } catch (e: any) { setErroMon(e.message) }
+    finally { setRemovendoMon(null) }
   }
 
   async function salvarColheita() {
@@ -674,7 +684,7 @@ function DetalheContent({
               </div>
               <div className="table-wrap">
                 <table className="tbl" style={{ minWidth: 380 }}>
-                  <thead><tr><th>Data</th><th>Sala</th><th>Temp</th><th>Umidade</th><th>Perdas</th><th>Obs</th></tr></thead>
+                  <thead><tr><th>Data</th><th>Sala</th><th>Temp</th><th>Umidade</th><th>Perdas</th><th>Obs</th><th></th></tr></thead>
                   <tbody>
                     {monitorsVis.map(m => (
                       <tr key={m.id}>
@@ -688,6 +698,15 @@ function DetalheContent({
                           {(m.blocosPerdidos ?? 0) > 0 ? `−${m.blocosPerdidos}` : '—'}
                         </td>
                         <td style={{ color: '#888' }}>{m.observacao ?? '—'}</td>
+                        <td>
+                          <button
+                            onClick={() => deletarMon(m.id)}
+                            disabled={removendoMon === m.id}
+                            style={{ fontSize: 12, color: removendoMon === m.id ? '#bbb' : 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                          >
+                            {removendoMon === m.id ? '...' : '×'}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -957,6 +976,13 @@ function Experimentos() {
     setColheitas(c)
   }
 
+  async function deletarMon(monitoramentoId: string) {
+    if (!selected) return
+    await api.experimentos.monitoramentos.deletar(selected.id, monitoramentoId)
+    const m: any = await api.experimentos.monitoramentos.listar(selected.id)
+    setMonitoramentos(m)
+  }
+
   async function salvarCustos(data: any) {
     if (!selected) return
     await api.experimentos.salvarCustos(selected.id, data)
@@ -1057,6 +1083,7 @@ function Experimentos() {
               onSalvarMon={salvarMon}
               onSalvarColheita={salvarColheita}
               onSalvarCustos={salvarCustos}
+              onDeletarMon={deletarMon}
             />
           </div>
         </div>
