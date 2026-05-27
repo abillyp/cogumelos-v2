@@ -11,7 +11,7 @@ import { clearTokens } from '@/lib/api'
 interface AuthCtx {
   user: AuthUser | null
   loading: boolean
-  login: (token: string, user: AuthUser) => void  // ✅ removido refreshToken
+  login: (token: string, user: AuthUser) => void
   logout: () => Promise<void>
   isAdmin: boolean
 }
@@ -33,18 +33,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false)
   }, [])
 
+  // Listener para sessão expirada disparado pelo api.ts
+  useEffect(() => {
+    function onExpired() {
+      setUser(null)
+      window.location.href = '/login'
+    }
+    window.addEventListener('session-expired', onExpired)
+    return () => window.removeEventListener('session-expired', onExpired)
+  }, [])
+
   function login(_token: string, u: AuthUser) {
-    // tokens gerenciados por HttpOnly cookies — apenas dados de UI no localStorage
     localStorage.setItem('user', JSON.stringify(u))
     setUser(u)
   }
 
   async function logout() {
-    // ✅ não lê refreshToken do localStorage — envia cookie automaticamente via credentials: include
     await fetch('/api/auth/logout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include', // ✅ envia o HttpOnly cookie para o backend invalidar
+      credentials: 'include',
     }).catch(() => {})
     clearTokens()
     setUser(null)

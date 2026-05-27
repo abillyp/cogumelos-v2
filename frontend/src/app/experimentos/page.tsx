@@ -488,12 +488,15 @@ function DetalheContent({
   const perdidos = selected.blocosPerdidos ?? 0
   const ativos = selected.totalBlocos - perdidos
 
-  const [sala, setSala] = useState(() => {
-    const fase = selected.status
-    if (fase === 'AMADURECIMENTO') return 'AMADURECIMENTO'
-    if (fase === 'DESCANSO') return 'DESCANSO'
-    return 'FRUTIFICACAO'
-  })
+  const salaAtual = ({
+    PREPARACAO:     'PREPARACAO',
+    INOCULADO:      'INOCULACAO',
+    AMADURECIMENTO: 'AMADURECIMENTO',
+    FRUTIFICACAO:   'FRUTIFICACAO',
+    DESCANSO:       'DESCANSO',
+  } as Record<string, string>)[selected.status] ?? 'FRUTIFICACAO'
+
+  const [sala, setSala]               = useState(salaAtual)
   const [dataM, setDataM]             = useState(new Date().toISOString().slice(0, 10))
   const [temp, setTemp]               = useState('')
   const [umid, setUmid]               = useState('')
@@ -633,6 +636,8 @@ function DetalheContent({
             <div><label className="label">Data</label><DateInput className="input text-sm" value={dataM} onChange={setDataM} /></div>
             <div><label className="label">Sala</label>
               <select className="input text-sm" value={sala} onChange={e => setSala(e.target.value)}>
+                <option value="PREPARACAO">Preparo</option>
+                <option value="INOCULACAO">Inoculação</option>
                 <option value="AMADURECIMENTO">Amadurecimento</option>
                 <option value="FRUTIFICACAO">Frutificação</option>
                 <option value="DESCANSO">Descanso</option>
@@ -674,7 +679,9 @@ function DetalheContent({
                     {monitorsVis.map(m => (
                       <tr key={m.id}>
                         <td>{m.data}</td>
-                        <td style={{ color: '#888' }}>{m.sala === 'AMADURECIMENTO' ? 'Amad.' : m.sala === 'DESCANSO' ? 'Desc.' : 'Frut.'}</td>
+                        <td style={{ color: '#888' }}>
+                          {({ PREPARACAO: 'Prep.', INOCULACAO: 'Inoc.', AMADURECIMENTO: 'Amad.', FRUTIFICACAO: 'Frut.', DESCANSO: 'Desc.' } as Record<string, string>)[m.sala] ?? m.sala}
+                        </td>
                         <td>{m.temperatura ?? '—'}°C</td>
                         <td>{m.umidade ?? '—'}%</td>
                         <td style={{ color: (m.blocosPerdidos ?? 0) > 0 ? '#A32D2D' : '#bbb', fontWeight: (m.blocosPerdidos ?? 0) > 0 ? 700 : 400 }}>

@@ -11,12 +11,10 @@ import type {
 
 const BASE = '/api'
 
-/** Extrai a mensagem de um erro desconhecido capturado em catch. */
 export function toErrorMessage(e: unknown, fallback = 'Erro desconhecido'): string {
   return e instanceof Error ? e.message : fallback
 }
 
-/** Lê o token CSRF do cookie XSRF-TOKEN (não-HttpOnly) definido pelo backend. */
 function getCsrfToken(): string {
   if (typeof document === 'undefined') return ''
   return document.cookie
@@ -25,14 +23,17 @@ function getCsrfToken(): string {
     ?.split('=')[1] ?? ''
 }
 
-// access token e refresh token estão em HttpOnly cookies — não há nada sensível no localStorage
-export function saveTokens(_token?: string) {
-  // no-op: tokens gerenciados por HttpOnly cookies pelo backend
-}
+export function saveTokens(_token?: string) {}
 
 export function clearTokens() {
   localStorage.removeItem('user')
-  // accessToken e refreshToken são limpos pelo backend via Set-Cookie maxAge=0 no /logout
+}
+
+function dispararSessaoExpirada() {
+  clearTokens()
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('session-expired'))
+  }
 }
 
 let refreshando = false
@@ -47,14 +48,13 @@ async function renovarToken(): Promise<void> {
     const res = await fetch(`${BASE}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include', // envia refreshToken cookie e recebe novo accessToken cookie
+      credentials: 'include',
     })
     if (!res.ok) throw new Error('Refresh falhou')
     filaRefresh.forEach(cb => cb())
     filaRefresh = []
   } catch {
-    clearTokens()
-    window.location.href = '/login'
+    dispararSessaoExpirada()
     throw new Error('Sessão expirada')
   } finally {
     refreshando = false
@@ -71,12 +71,12 @@ async function req<T>(path: string, options?: RequestInit, retry = true): Promis
       'Content-Type': 'application/json',
       ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
     },
-    credentials: 'include', // envia accessToken cookie automaticamente
+    credentials: 'include',
     ...options,
   })
 
   if (res.status === 402) {
-    clearTokens()
+    dispararSessaoExpirada()
     if (typeof window !== 'undefined') window.location.href = '/plano-expirado?tipo=trial_expirado'
     throw new Error('Período de trial encerrado')
   }
@@ -84,7 +84,7 @@ async function req<T>(path: string, options?: RequestInit, retry = true): Promis
   if (res.status === 403) {
     const err403 = await res.json().catch(() => ({ erro: '' })) as { erro: string }
     if (err403.erro?.toLowerCase().includes('cancelada')) {
-      clearTokens()
+      dispararSessaoExpirada()
       if (typeof window !== 'undefined') window.location.href = '/plano-expirado?tipo=cancelado'
       throw new Error('Assinatura cancelada')
     }
@@ -93,7 +93,7 @@ async function req<T>(path: string, options?: RequestInit, retry = true): Promis
   if (res.status === 401 && retry) {
     try {
       await renovarToken()
-      return req<T>(path, options, false) // repete com o novo accessToken cookie
+      return req<T>(path, options, false)
     } catch { throw new Error('Sessão expirada') }
   }
 
@@ -173,14 +173,14 @@ export const api = {
     deletar:      (id: string) => req<void>(`/experimentos/${id}`,                      { method: 'DELETE' }),
     resumoDelete: (id: string) => req<unknown>(`/experimentos/${id}/resumo-delete`),
     monitoramentos: {
-      listar: (id: string)                          => req<Monitoramento[]>(`/experimentos/${id}/monitoramentos`),
+      listar: (id: string)                            => req<Monitoramento[]>(`/experimentos/${id}/monitoramentos`),
       criar:  (id: string, body: MonitoramentoCreate) => req<Monitoramento>(`/experimentos/${id}/monitoramentos`, { method: 'POST', body: JSON.stringify(body) }),
     },
     salvarCustos: (id: string, body: CustosUpdate) =>
       req<Experimento>(`/experimentos/${id}/custos`,                                    { method: 'PUT', body: JSON.stringify(body) }),
     colheitas: {
-      listar: (id: string)                      => req<Colheita[]>(`/experimentos/${id}/colheitas`),
-      criar:  (id: string, body: ColheitaCreate) => req<Colheita>(`/experimentos/${id}/colheitas`, { method: 'POST', body: JSON.stringify(body) }),
+      listar: (id: string)                        => req<Colheita[]>(`/experimentos/${id}/colheitas`),
+      criar:  (id: string, body: ColheitaCreate)  => req<Colheita>(`/experimentos/${id}/colheitas`, { method: 'POST', body: JSON.stringify(body) }),
     },
   },
   relatorio: {
