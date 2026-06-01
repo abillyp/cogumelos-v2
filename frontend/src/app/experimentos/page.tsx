@@ -301,6 +301,7 @@ function ModalEtiquetas({ exp, onFechar }: { exp: Experimento; onFechar: () => v
         <head>
           <title>Etiquetas — ${exp.codigo}</title>
           <style>
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             body { margin: 0; padding: 8mm; font-family: monospace; }
             @media print { body { margin: 0; padding: 4mm; } }
           </style>
