@@ -14,6 +14,7 @@ package com.cogumelos.service;
 import com.cogumelos.domain.*;
 import com.cogumelos.dto.custos.CustoInsumoItem;
 import com.cogumelos.dto.experimento.*;
+import com.cogumelos.dto.relatorio.ColheitaMensalItem;
 import com.cogumelos.dto.relatorio.FinanceiroResponse;
 import com.cogumelos.dto.relatorio.RelatorioResponse;
 import com.cogumelos.enums.Role;
@@ -325,8 +326,19 @@ public class ExperimentoService {
         double margemMedia = receitaTotal > 0
                 ? ((receitaTotal - custoTotal) / receitaTotal) * 100 : 0.0;
 
+        // agrupa colheitas por mês "yyyy-MM"
+        java.util.Map<String, Double> porMes = new java.util.TreeMap<>();
+        for (Colheita c : todasColheitas) {
+            String mes = c.getData().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
+            porMes.merge(mes, c.getPesoTotalKg(), Double::sum);
+        }
+        List<ColheitaMensalItem> colheitasMensais = porMes.entrySet().stream()
+                .map(entry -> new ColheitaMensalItem(entry.getKey(), entry.getValue()))
+                .toList();
+
         return new RelatorioResponse(total, (int) concluidos, (int) emAndamento,
-                totalColhidoKgGlobal, receitaTotal, custoTotal, margemMedia, detalhes);
+                totalColhidoKgGlobal, receitaTotal, custoTotal, margemMedia,
+                detalhes, colheitasMensais);
     }
 
     // chamado nas rotas individuais — busca colheitas do banco

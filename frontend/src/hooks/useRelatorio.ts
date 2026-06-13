@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { api, toErrorMessage } from '@/lib/api'
-import type { Experimento, DiasPorFase } from '@/lib/types'
+import type { Experimento, DiasPorFase, ColheitaMensalItem } from '@/lib/types'
 
 // Alias para legibilidade nos cálculos do relatório
 export type Exp = Experimento
@@ -31,6 +31,7 @@ interface RelatorioResponse {
   totalColhidoKg?: number | null; receitaTotal?: number | null
   custoTotal?: number | null; margemMediaPct?: number | null
   detalhes?: Exp[]
+  colheitasMensais?: ColheitaMensalItem[]
 }
 
 const RESUMO_VAZIO: RelatorioResumo = {
@@ -43,6 +44,7 @@ export function useRelatorio() {
   const [erro, setErro]           = useState('')
   const [resumo, setResumo]       = useState<RelatorioResumo>(RESUMO_VAZIO)
   const [exps, setExps]           = useState<Exp[]>([])
+  const [colheitasMensaisRaw, setColheitasMensaisRaw] = useState<ColheitaMensalItem[]>([])
   const [filtroEsp, setFiltroEsp] = useState('Todas')
   const [filtroSt, setFiltroSt]   = useState('Todos')
 
@@ -60,6 +62,7 @@ export function useRelatorio() {
           margemMediaPct:    d.margemMediaPct     ?? null,
         })
         setExps(d.detalhes ?? [])
+        setColheitasMensaisRaw(d.colheitasMensais ?? [])
       })
       .catch((e: unknown) => setErro(toErrorMessage(e, 'Erro ao carregar relatório')))
       .finally(() => setLoading(false))
@@ -135,16 +138,15 @@ export function useRelatorio() {
   }, [exps])
 
   const colheitaMensal = useMemo(() => {
-    const m: Record<string, number> = {}
-    for (const e of concluidos) {
-      const c = e.financeiro?.totalColhidoKg; if (!c || c === 0) continue
-      const mesRef = e.dataPreparo
-      const k = mesRef?.slice(0, 7) ?? ''; if (k) m[k] = (m[k] ?? 0) + c
-    }
-    const sorted = Object.entries(m).sort(([a], [b]) => a.localeCompare(b)).slice(-6)
     const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
-    return { labels: sorted.map(([k]) => MESES[parseInt(k.split('-')[1]) - 1]), data: sorted.map(([, v]) => +v.toFixed(1)) }
-  }, [concluidos])
+    const sorted = [...colheitasMensaisRaw]
+      .sort((a, b) => a.mes.localeCompare(b.mes))
+      .slice(-6)
+    return {
+      labels: sorted.map(i => MESES[parseInt(i.mes.split('-')[1]) - 1]),
+      data:   sorted.map(i => +i.totalKg.toFixed(1)),
+    }
+  }, [colheitasMensaisRaw])
 
   const projecao = useMemo(() => {
     const recEsp  = ativos.reduce((s, e) => s + (e.pesoBlocoKg ?? 1.2) * e.totalBlocos * ((ebMedia ?? 60) / 100) * (e.precoVendaKg ?? 0), 0)

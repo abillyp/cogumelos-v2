@@ -23,5 +23,6 @@ public record RelatorioResponse(
         Double receitaTotal,
         Double custoTotal,
         Double margemMediaPct,
-        List<ExperimentoResponse> detalhes
+        List<ExperimentoResponse> detalhes,
+        List<ColheitaMensalItem> colheitasMensais
 ) {}

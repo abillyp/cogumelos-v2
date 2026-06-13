@@ -157,6 +157,11 @@ export interface CodigoSugestaoResponse {
   codigo: string
 }
 
+export interface ColheitaMensalItem {
+  mes: string      // "yyyy-MM"
+  totalKg: number
+}
+
 // ─── Request body types ───────────────────────────────────────────────────────
 export interface MonitoramentoCreate {
   sala: Monitoramento['sala']
