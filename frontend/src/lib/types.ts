@@ -81,6 +81,14 @@ export interface ExperimentoInsumo {
   pesoKg: number
 }
 
+export interface DiasPorFase {
+  preparacao:     number
+  inoculacao:     number
+  amadurecimento: number
+  frutificacao:   number
+  descanso:       number
+  total:          number
+}
 
 export interface Experimento {
   id: string
@@ -91,11 +99,6 @@ export interface Experimento {
   formulacaoNome: string
   especieNome: string
   dataPreparo: string
-  dataInoculacao: string | null
-  amadurecimentoInicio: string | null
-  amadurecimentoFim: string | null
-  frutificacaoInicio: string | null
-  frutificacaoFim: string | null
   totalBlocos: number
   pesoBlocoKg: number | null
   precoVendaKg?: number | null
@@ -107,6 +110,7 @@ export interface Experimento {
   custos?: CustoInsumoResponse[]
   insumos?: ExperimentoInsumo[]
   financeiro?: FinanceiroResponse
+  diasPorFase?: DiasPorFase
 }
 
 export interface Monitoramento {

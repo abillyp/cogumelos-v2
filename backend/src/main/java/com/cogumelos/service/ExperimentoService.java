@@ -192,6 +192,17 @@ public class ExperimentoService {
         faseNova.setFase(fase);
         e.setFaseAtual(fase);
         faseRepo.save(faseNova);
+
+        // ── monitoramento automático de troca de fase ──
+        LoteMonitoramento monAuto = new LoteMonitoramento();
+        monAuto.setId(UUID.randomUUID().toString());
+        monAuto.setTenantId(tenantId());
+        monAuto.setExperimento(e);
+        monAuto.setSala(toSala(fase));
+        monAuto.setData(LocalDate.now());
+        monAuto.setBlocosPerdidos(0);
+        monAuto.setObservacao("Mudança de fase: " + faseAtual.getFase().name() + " → " + fase.name());
+        monitoramentoRepo.save(monAuto);
     }
 
     @Transactional
@@ -397,5 +408,15 @@ public class ExperimentoService {
 
 
         monitoramentoRepo.deleteById(monitoramentoId);
+    }
+
+    private Sala toSala(Fase fase) {
+        return switch (fase) {
+            case INOCULADO      -> Sala.INOCULACAO;
+            case AMADURECIMENTO -> Sala.AMADURECIMENTO;
+            case FRUTIFICACAO   -> Sala.FRUTIFICACAO;
+            case DESCANSO       -> Sala.DESCANSO;
+            default             -> Sala.PREPARACAO;
+        };
     }
 }

@@ -38,9 +38,11 @@ public record ExperimentoResponse(
         Integer cicloAtual,
         List<CustoInsumoResponse> custos,
         List<ExperimentoInsumoResponse> insumos,
-        FinanceiroResponse financeiro
+        FinanceiroResponse financeiro,
+        DiasPorFaseResponse diasPorFase
 ) {
     public static ExperimentoResponse from(Experimento e, FinanceiroResponse fin) {
+        DiasPorFaseResponse diasPorFase = calcularDiasPorFase(e.getFases());
         var custos = e.getCustos() == null ? List.<CustoInsumoResponse>of() :
                 e.getCustos().stream().map(ec -> {
                     Double peso = e.getFormulacao().getInsumos().stream()
@@ -86,7 +88,41 @@ public record ExperimentoResponse(
                 cicloAtual,
                 custos,
                 insumos,
-                fin
+                fin,
+                diasPorFase
+        );
+    }
+
+    private static DiasPorFaseResponse calcularDiasPorFase(List<ExperimentoFase> fases) {
+        java.util.Map<String, Long> dias = new java.util.HashMap<>();
+
+        for (ExperimentoFase f : fases) {
+            if (f.getInicio() == null) continue;
+            LocalDate fim = f.getFim() != null ? f.getFim() : LocalDate.now();
+            long d = java.time.temporal.ChronoUnit.DAYS.between(f.getInicio(), fim);
+            // acumula por fase (pode ter múltiplos ciclos de FRUTIFICACAO/DESCANSO)
+            dias.merge(f.getFase().name(), d, Long::sum);
+        }
+
+        // total = da primeira fase até hoje ou fim da última
+        LocalDate inicio = fases.stream()
+                .filter(f -> f.getInicio() != null)
+                .map(ExperimentoFase::getInicio)
+                .min(LocalDate::compareTo).orElse(null);
+        LocalDate fimTotal = fases.stream()
+                .filter(f -> f.getFim() != null)
+                .map(ExperimentoFase::getFim)
+                .max(LocalDate::compareTo).orElse(LocalDate.now());
+        long total = inicio != null
+                ? java.time.temporal.ChronoUnit.DAYS.between(inicio, fimTotal) : 0;
+
+        return new DiasPorFaseResponse(
+                dias.getOrDefault("PREPARACAO",     0L).intValue(),
+                dias.getOrDefault("INOCULADO",      0L).intValue(),
+                dias.getOrDefault("AMADURECIMENTO", 0L).intValue(),
+                dias.getOrDefault("FRUTIFICACAO",   0L).intValue(),
+                dias.getOrDefault("DESCANSO",       0L).intValue(),
+                (int) total
         );
     }
 }

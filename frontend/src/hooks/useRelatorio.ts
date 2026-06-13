@@ -5,8 +5,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { api, toErrorMessage } from '@/lib/api'
-import { diasEntre } from '@/lib/calculos'
-import type { Experimento } from '@/lib/types'
+import type { Experimento, DiasPorFase } from '@/lib/types'
 
 // Alias para legibilidade nos cálculos do relatório
 export type Exp = Experimento
@@ -87,15 +86,25 @@ export function useRelatorio() {
   }, [ativos])
 
   const diasCiclo = useMemo(() => {
-    const v = concluidos.map(e => diasEntre(e.dataPreparo, e.frutificacaoFim)).filter((x): x is number => x !== null)
-    return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null
+    const vals = concluidos
+      .map(e => e.diasPorFase?.total)
+      .filter((x): x is number => x != null && x > 0)
+    return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null
   }, [concluidos])
 
-  const diasFases = useMemo(() => ([
-    { label: 'Inoculação',   vals: concluidos.map(e => diasEntre(e.dataPreparo, e.dataInoculacao)).filter((x): x is number => x !== null && x > 0) },
-    { label: 'Amadurec.',    vals: concluidos.map(e => diasEntre(e.dataInoculacao, e.amadurecimentoFim)).filter((x): x is number => x !== null && x > 0) },
-    { label: 'Frutificação', vals: concluidos.map(e => diasEntre(e.amadurecimentoInicio, e.frutificacaoFim)).filter((x): x is number => x !== null && x > 0) },
-  ].map(f => ({ label: f.label, dias: f.vals.length ? Math.round(f.vals.reduce((a, b) => a + b, 0) / f.vals.length) : null }))), [concluidos])
+  const diasFases = useMemo(() => {
+    const soma = (key: keyof DiasPorFase) => {
+      const vals = concluidos
+        .map(e => e.diasPorFase?.[key])
+        .filter((x): x is number => x != null && x > 0)
+      return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null
+    }
+    return [
+      { label: 'Inoculação',   dias: soma('inoculacao') },
+      { label: 'Amadurec.',    dias: soma('amadurecimento') },
+      { label: 'Frutificação', dias: soma('frutificacao') },
+    ]
+  }, [concluidos])
 
   const topForm = useMemo(() => {
     const map = new Map<string, { nome: string; especie: string; cn: number | null; ebs: number[]; custos: number[]; margs: number[]; total: number }>()
@@ -129,7 +138,7 @@ export function useRelatorio() {
     const m: Record<string, number> = {}
     for (const e of concluidos) {
       const c = e.financeiro?.totalColhidoKg; if (!c || c === 0) continue
-      const mesRef = e.frutificacaoFim ?? e.dataPreparo
+      const mesRef = e.dataPreparo
       const k = mesRef?.slice(0, 7) ?? ''; if (k) m[k] = (m[k] ?? 0) + c
     }
     const sorted = Object.entries(m).sort(([a], [b]) => a.localeCompare(b)).slice(-6)
